@@ -108,7 +108,7 @@ public:
 };
 
 
-class ShowPidCommand : public BuiltInCommand {
+class ShowPidCommand : public BuiltInCommand { //ready
 public:
     ShowPidCommand(const char *cmd_line);
 
@@ -117,6 +117,17 @@ public:
 
     void execute() override;
 };
+
+class GetCurrDirCommand : public BuiltInCommand { //ready
+public:
+    GetCurrDirCommand(const char *cmd_line);
+
+    virtual ~GetCurrDirCommand() {
+    }
+
+    void execute() override;
+};
+
 
 class ChangeDirCommand : public BuiltInCommand {
     // TODO: Add your data members public:
@@ -128,15 +139,6 @@ class ChangeDirCommand : public BuiltInCommand {
     void execute() override;
 };
 
-class GetCurrDirCommand : public BuiltInCommand {
-public:
-    GetCurrDirCommand(const char *cmd_line);
-
-    virtual ~GetCurrDirCommand() {
-    }
-
-    void execute() override;
-};
 
 
 class JobsList;
@@ -265,8 +267,6 @@ private:
     pid_t pid;
 
     SmallShell();
-
-
 
 public:
     Command *CreateCommand(const char *cmd_line);

@@ -85,6 +85,10 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line){}
 
 ChpromptCommand::ChpromptCommand(const char *cmd_line) : BuiltInCommand(cmd_line){}
 
+ShowPidCommand::ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
 void ChpromptCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
     int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
@@ -99,11 +103,23 @@ void ChpromptCommand::execute() {
     }
 }
 
-ShowPidCommand::ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
-
 void ShowPidCommand::execute() {
-    std::cout << "smash pid is " << SmallShell::getInstance().getPid() << std::endl ;
+    pid_t pid = SmallShell::getInstance().getPid();
+    if (pid != -1) {
+        std::cout << "smash pid is " << pid << std::endl ;
+    }
 }
+
+void GetCurrDirCommand::execute() {
+    char buff[PATH_MAX];
+
+    if (getcwd(buff, PATH_MAX) != nullptr) {
+        std::cout << buff << std::endl ;
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
 
 SmallShell::SmallShell() {
     this->currPrompt = "smash";
@@ -129,6 +145,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
     if (firstWord.compare("showpid") == 0) {
         return new ShowPidCommand(cmd_line);
+    }
+
+    if (firstWord.compare("pwd") == 0) {
+        return new GetCurrDirCommand(cmd_line);
     }
 
 
@@ -159,6 +179,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
     Command* cmd = CreateCommand(cmd_line);
     if (cmd != nullptr) {
         cmd->execute();
+        delete cmd;
     }
 
     // Please note that you must fork smash process for some commands (e.g., external commands....)
@@ -177,6 +198,9 @@ void SmallShell::setCurrPrompt(const std::string &prompt) {
 pid_t SmallShell::getPid() const {
     return this->pid;
 }
+
+
+
 
 
 
