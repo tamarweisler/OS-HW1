@@ -255,14 +255,14 @@ public:
     void execute() override;
 };
 
-
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class SmallShell {
 private:
     // TODO: Add your data members
 
     std::string currPrompt;
+    pid_t pid;
 
     SmallShell();
 
@@ -287,6 +287,8 @@ public:
     std::string getCurrPrompt() const;
 
     void setCurrPrompt(const std::string &prompt);
+
+    pid_t getPid() const;
 
     // TODO: add extra methods as needed
 };

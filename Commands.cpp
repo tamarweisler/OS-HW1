@@ -92,7 +92,6 @@ void ChpromptCommand::execute() {
     if (numArgs == 0) {
         return;
     }
-
     if (numArgs == 1) {
         SmallShell::getInstance().setCurrPrompt("smash");
     }else {
@@ -100,10 +99,15 @@ void ChpromptCommand::execute() {
     }
 }
 
+ShowPidCommand::ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
 
+void ShowPidCommand::execute() {
+    std::cout << "smash pid is " << SmallShell::getInstance().getPid() << std::endl ;
+}
 
 SmallShell::SmallShell() {
-    // TODO: add your implementation
+    this->currPrompt = "smash";
+    this->pid = getpid();
 }
 
 SmallShell::~SmallShell() {
@@ -117,8 +121,14 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
 
+    // if no args
+
     if (firstWord.compare("chprompt") == 0) {
         return new ChpromptCommand(cmd_line);
+    }
+
+    if (firstWord.compare("showpid") == 0) {
+        return new ShowPidCommand(cmd_line);
     }
 
 
@@ -163,6 +173,11 @@ std::string SmallShell::getCurrPrompt() const {
 void SmallShell::setCurrPrompt(const std::string &prompt) {
     this->currPrompt = prompt;
 }
+
+pid_t SmallShell::getPid() const {
+    return this->pid;
+}
+
 
 
 
