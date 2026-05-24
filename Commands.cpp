@@ -89,7 +89,10 @@ ShowPidCommand::ShowPidCommand(const char *cmd_line) : BuiltInCommand(cmd_line) 
 
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
 
-void ChpromptCommand::execute() {
+ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : BuiltInCommand(cmd_line), pLastPwd(plastPwd) {}
+
+
+    void ChpromptCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
     int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
 
@@ -118,12 +121,51 @@ void GetCurrDirCommand::execute() {
     }
 }
 
+void ChangeDirCommand::execute() {
+    char* args[COMMAND_MAX_ARGS];
+    int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
+
+    if (numArgs < 2) {
+        return;
+    }
+
+    if (numArgs > 2) {
+        std::cerr << "smash error: cd: too many arguments" << std::endl ;
+        return;
+    }
+
+    if (std::string(args[1]) == "-" && *this->pLastPwd == nullptr) {
+        std::cerr << "smash error: cd: OLDPWD not set" << std::endl ;
+        return;
+    }
+
+    char* buff = new char[PATH_MAX];
+    char* temp = getcwd(buff, PATH_MAX);
+
+    if (temp != nullptr) {
+        if (std::string(args[1]) == "-") {
+            if (*this->pLastPwd != nullptr && chdir(*this->pLastPwd) != -1) { //here we take chdir of the prev dir
+                *this->pLastPwd = temp;
+                return;
+            }
+        }else {
+            if (chdir(args[1]) != -1) { //here we take chdir of the excepted arg
+                *this->pLastPwd = temp;
+                return;
+            }
+        }
+    }
+
+    perror("smash error: cd failed");
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 SmallShell::SmallShell() {
     this->currPrompt = "smash";
     this->pid = getpid();
+    this->prevWorkDir = nullptr;
+
 }
 
 SmallShell::~SmallShell() {
@@ -149,6 +191,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
     if (firstWord.compare("pwd") == 0) {
         return new GetCurrDirCommand(cmd_line);
+    }
+
+    if (firstWord.compare("cd") == 0) {
+        return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
     }
 
 
@@ -198,6 +244,8 @@ void SmallShell::setCurrPrompt(const std::string &prompt) {
 pid_t SmallShell::getPid() const {
     return this->pid;
 }
+
+
 
 
 

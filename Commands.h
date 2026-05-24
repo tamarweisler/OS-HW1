@@ -97,7 +97,7 @@ public:
     void execute() override;
 };
 
-class ChpromptCommand : public BuiltInCommand { // ready
+class ChpromptCommand : public BuiltInCommand { // ready (chprompt)
 public:
     ChpromptCommand(const char *cmd_line);
 
@@ -108,7 +108,7 @@ public:
 };
 
 
-class ShowPidCommand : public BuiltInCommand { //ready
+class ShowPidCommand : public BuiltInCommand { //ready (pid)
 public:
     ShowPidCommand(const char *cmd_line);
 
@@ -118,7 +118,7 @@ public:
     void execute() override;
 };
 
-class GetCurrDirCommand : public BuiltInCommand { //ready
+class GetCurrDirCommand : public BuiltInCommand { //ready (pwd)
 public:
     GetCurrDirCommand(const char *cmd_line);
 
@@ -131,6 +131,8 @@ public:
 
 class ChangeDirCommand : public BuiltInCommand {
     // TODO: Add your data members public:
+    char **pLastPwd;
+public:
     ChangeDirCommand(const char *cmd_line, char **plastPwd);
 
     virtual ~ChangeDirCommand() {
@@ -265,6 +267,7 @@ private:
 
     std::string currPrompt;
     pid_t pid;
+    std::string prevWorkDir;
 
     SmallShell();
 
