@@ -267,7 +267,7 @@ private:
 
     std::string currPrompt;
     pid_t pid;
-    std::string prevWorkDir;
+    char* prevWorkDir;
 
     SmallShell();
 
