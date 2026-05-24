@@ -73,7 +73,34 @@ void _removeBackgroundSign(char *cmd_line) {
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
-// TODO: Add your implementation for classes in Commands.h 
+// TODO: Add your implementation for classes in Commands.h
+
+Command::Command(const char *cmd_line) : cmd_line(cmd_line){}
+
+std::string Command::getCmdLine() const {
+    return this->cmd_line;
+}
+
+BuiltInCommand::BuiltInCommand(const char *cmd_line) : Command(cmd_line){}
+
+ChpromptCommand::ChpromptCommand(const char *cmd_line) : BuiltInCommand(cmd_line){}
+
+void ChpromptCommand::execute() {
+    char* args[COMMAND_MAX_ARGS];
+    int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
+
+    if (numArgs == 0) {
+        return;
+    }
+
+    if (numArgs == 1) {
+        SmallShell::getInstance().setCurrPrompt("smash");
+    }else {
+        SmallShell::getInstance().setCurrPrompt(args[1]);
+    }
+}
+
+
 
 SmallShell::SmallShell() {
     // TODO: add your implementation
@@ -87,6 +114,15 @@ SmallShell::~SmallShell() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
+    string cmd_s = _trim(string(cmd_line));
+    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+
+    if (firstWord.compare("chprompt") == 0) {
+        return new ChpromptCommand(cmd_line);
+    }
+
+
+
     // For example:
     /*
     string cmd_s = _trim(string(cmd_line));
@@ -110,7 +146,27 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 void SmallShell::executeCommand(const char *cmd_line) {
     // TODO: Add your implementation here
     // for example:
-    // Command* cmd = CreateCommand(cmd_line);
-    // cmd->execute();
+    Command* cmd = CreateCommand(cmd_line);
+    if (cmd != nullptr) {
+        cmd->execute();
+    }
+
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
+
+
+
+std::string SmallShell::getCurrPrompt() const {
+    return this->currPrompt;
+}
+
+void SmallShell::setCurrPrompt(const std::string &prompt) {
+    this->currPrompt = prompt;
+}
+
+
+
+
+
+
+

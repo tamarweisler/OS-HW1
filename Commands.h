@@ -9,12 +9,16 @@
 
 class Command {
     // TODO: Add your data members
+protected:
+    std::string cmd_line;
 public:
     Command(const char *cmd_line);
 
     virtual ~Command();
 
     virtual void execute() = 0;
+
+    std::string getCmdLine() const;
 
     //virtual void prepare();
     //virtual void cleanup();
@@ -93,6 +97,27 @@ public:
     void execute() override;
 };
 
+class ChpromptCommand : public BuiltInCommand { // ready
+public:
+    ChpromptCommand(const char *cmd_line);
+
+    virtual ~ChpromptCommand() {
+    }
+
+    void execute() override;
+};
+
+
+class ShowPidCommand : public BuiltInCommand {
+public:
+    ShowPidCommand(const char *cmd_line);
+
+    virtual ~ShowPidCommand() {
+    }
+
+    void execute() override;
+};
+
 class ChangeDirCommand : public BuiltInCommand {
     // TODO: Add your data members public:
     ChangeDirCommand(const char *cmd_line, char **plastPwd);
@@ -113,15 +138,6 @@ public:
     void execute() override;
 };
 
-class ShowPidCommand : public BuiltInCommand {
-public:
-    ShowPidCommand(const char *cmd_line);
-
-    virtual ~ShowPidCommand() {
-    }
-
-    void execute() override;
-};
 
 class JobsList;
 
@@ -239,10 +255,18 @@ public:
     void execute() override;
 };
 
+
+
+
 class SmallShell {
 private:
     // TODO: Add your data members
+
+    std::string currPrompt;
+
     SmallShell();
+
+
 
 public:
     Command *CreateCommand(const char *cmd_line);
@@ -259,6 +283,10 @@ public:
     ~SmallShell();
 
     void executeCommand(const char *cmd_line);
+
+    std::string getCurrPrompt() const;
+
+    void setCurrPrompt(const std::string &prompt);
 
     // TODO: add extra methods as needed
 };
