@@ -3,19 +3,24 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <string>
+#include <sys/types.h>
 
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
 class Command {
     // TODO: Add your data members
+protected:
+    std::string cmd_line;
+    pid_t pid;
 public:
     Command(const char *cmd_line);
-
     virtual ~Command();
-
     virtual void execute() = 0;
-
+    std::string getCmdLine() const;
+    void setPid(pid_t pid);
+    pid_t getPid() const;
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
@@ -94,7 +99,8 @@ public:
 };
 
 class ChangeDirCommand : public BuiltInCommand {
-    // TODO: Add your data members public:
+    // TODO: Add your data members
+public:
     ChangeDirCommand(const char *cmd_line, char **plastPwd);
 
     virtual ~ChangeDirCommand() {
@@ -126,7 +132,9 @@ public:
 class JobsList;
 
 class QuitCommand : public BuiltInCommand {
-    // TODO: Add your data members public:
+private:
+    JobsList* jobs;
+public:
     QuitCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~QuitCommand() {
@@ -138,8 +146,16 @@ class QuitCommand : public BuiltInCommand {
 class JobsList {
 public:
     class JobEntry {
-        // TODO: Add your data members
+    public:
+        int job_id;
+        pid_t pid;
+        std::string cmd_line;
+        bool stopped;
+
+        JobEntry(int job_id, pid_t pid, const std::string& cmd_line, bool stopped);
     };
+private:
+    std::vector<JobEntry> jobs;
 
     // TODO: Add your data members
 public:
@@ -147,7 +163,7 @@ public:
 
     ~JobsList();
 
-    void addJob(Command *cmd, bool isStopped = false);
+    void addJob(Command *cmd, bool Stopped = false);
 
     void printJobsList();
 
@@ -167,7 +183,8 @@ public:
 };
 
 class JobsCommand : public BuiltInCommand {
-    // TODO: Add your data members
+private:
+    JobsList* jobs;
 public:
     JobsCommand(const char *cmd_line, JobsList *jobs);
 
@@ -178,7 +195,8 @@ public:
 };
 
 class KillCommand : public BuiltInCommand {
-    // TODO: Add your data members
+private:
+    JobsList* jobs;
 public:
     KillCommand(const char *cmd_line, JobsList *jobs);
 
@@ -189,7 +207,8 @@ public:
 };
 
 class ForegroundCommand : public BuiltInCommand {
-    // TODO: Add your data members
+private:
+    JobsList* jobs;
 public:
     ForegroundCommand(const char *cmd_line, JobsList *jobs);
 
@@ -241,12 +260,13 @@ public:
 
 class SmallShell {
 private:
-    // TODO: Add your data members
-    SmallShell();
+    JobsList jobs;
+    pid_t foreground_pid;
+    std::string foreground_cmd;
 
+    SmallShell();
 public:
     Command *CreateCommand(const char *cmd_line);
-
     SmallShell(SmallShell const &) = delete; // disable copy ctor
     void operator=(SmallShell const &) = delete; // disable = operator
     static SmallShell &getInstance() // make SmallShell singleton
@@ -255,12 +275,14 @@ public:
         // Instantiated on first use.
         return instance;
     }
-
     ~SmallShell();
-
     void executeCommand(const char *cmd_line);
-
-    // TODO: add extra methods as needed
+    JobsList& getJobsList();
+    pid_t getForegroundPid() const;
+    std::string getForegroundCmd() const;
+    bool hasForegroundProcess() const;
+    void setForegroundProcess(pid_t pid, const std::string& cmd);
+    void clearForegroundProcess();
 };
 
 #endif //SMASH_COMMAND_H_
