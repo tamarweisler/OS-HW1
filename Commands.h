@@ -5,6 +5,8 @@
 #include <vector>
 #include <map>
 
+using namespace std;
+
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
@@ -220,8 +222,8 @@ public:
     void execute() override;
 };
 
-class AliasCommand : public BuiltInCommand {
-    std::string command;
+class AliasCommand : public BuiltInCommand { //ready
+    string command;
 public:
     AliasCommand(const char *cmd_line);
 
@@ -231,7 +233,7 @@ public:
     void execute() override;
 };
 
-class UnAliasCommand : public BuiltInCommand {
+class UnAliasCommand : public BuiltInCommand { //ready
 public:
     UnAliasCommand(const char *cmd_line);
 
@@ -273,12 +275,12 @@ private:
 
     SmallShell();
 
-    std::string savedCommands[8] = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg", "quit", "Kill"}; //an array of the forbidden words to use in alias command
-    std::vector<std::string> commandsByOrder;
-    std::map<std::string, std::string> aliasCommands;
+    string savedCommands[8] = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg", "quit", "Kill"}; //an array of the forbidden words to use in alias command
+    vector<string> commandsByOrder;
+    map<string, string> aliasCommands;
 
 
-    std::string sliceInput(std::string &input);
+    string sliceInput(string &input);
 
 
 
@@ -298,21 +300,21 @@ public:
 
     void executeCommand(const char *cmd_line);
 
-    std::string getCurrPrompt() const;
+    string getCurrPrompt() const;
 
-    void setCurrPrompt(const std::string &prompt);
+    void setCurrPrompt(const string &prompt);
 
     pid_t getPid() const;
 
     void printCommandsByOrder() const;
 
-    void addAliasCommand(const std::string aliasCommand ,const std::string command);
+    void addAliasCommand(const string aliasCommand ,const string command);
 
-    bool isSavedCommands(const std::string command);
+    bool isSavedCommands(const string command);
 
-    bool isAliasCommand(const std::string command);
+    bool isAliasCommand(const string command);
 
-    void removeAliasCommand(const std::string aliasCommand);
+    void removeAliasCommand(const string aliasCommand);
 
     // TODO: add extra methods as needed
 };

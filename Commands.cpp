@@ -95,6 +95,9 @@ ChangeDirCommand::ChangeDirCommand(const char *cmd_line, char **plastPwd) : Buil
 
 AliasCommand::AliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
 
+UnAliasCommand::UnAliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     void ChpromptCommand::execute() {
@@ -238,27 +241,27 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
 
 
-    if (firstWord.compare("chprompt") == 0) {
+    if (firstWord.compare("chprompt") == 0 || firstWord.compare("chprompt&") == 0) {
         return new ChpromptCommand(cmd_line);
     }
 
-    if (firstWord.compare("showpid") == 0) {
+    if (firstWord.compare("showpid") == 0 || firstWord.compare("showpid&") == 0) {
         return new ShowPidCommand(cmd_line);
     }
 
-    if (firstWord.compare("pwd") == 0) {
+    if (firstWord.compare("pwd") == 0 || firstWord.compare("pwd&") == 0) {
         return new GetCurrDirCommand(cmd_line);
     }
 
-    if (firstWord.compare("cd") == 0) {
+    if (firstWord.compare("cd") == 0 || firstWord.compare("cd&") == 0) {
         return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
     }
 
-    if (firstWord.compare("alias") == 0) {
+    if (firstWord.compare("alias") == 0 || firstWord.compare("alias&") == 0) {
         return new AliasCommand(cmd_line);
     }
 
-    if (firstWord.compare("unalias") == 0) {
+    if (firstWord.compare("unalias") == 0 || firstWord.compare("unalias&") == 0) {
         return new UnAliasCommand(cmd_line);
     }
 
