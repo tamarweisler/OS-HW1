@@ -210,7 +210,7 @@ void UnAliasCommand::execute() {
 
     for (int i = 1; i < numArgs; i++) {
         if (!SmallShell::getInstance().isAliasCommand(args[i])) {
-            std::cerr << "smash error: unalias:" << args[i] << " alias does not exist"<< std::endl;
+            std::cerr << "smash error: unalias: " << args[i] << " alias does not exist"<< std::endl;
             return;
         }
 
@@ -224,16 +224,17 @@ void UnSetEnvCommand::execute() {
 
     if (numArgs == 1) {
         std::cerr << "smash error: unsetenv: not enough arguments" << std::endl;
+        return;
     }
 
     for (int i = 1; i < numArgs; i++) {
-
+        if (!SmallShell::getInstance().isSetEnv(args[i])) {
+            std::cerr << "smash error: unsetenv: " << args[i] << " does not exist" << std::endl;
+            return;
+        }
+        SmallShell::getInstance().removeEnv(args[i]);
     }
 }
-
-
-
-
 
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -395,42 +396,58 @@ void SmallShell::removeAliasCommand(const std::string aliasCommand) {
     }
 }
 
-bool SmallShell::isSetEnv(const string command, const int argNum) {
-    string toFind = "/proc" + to_string(this->pid) + "/environ";
+bool SmallShell::isSetEnv(const string command) {
+    string toFind = "/proc/" + to_string(this->pid) + "/environ";
     int fd = open(toFind.c_str(), O_RDONLY);
     if (fd == -1) {
         perror("smash error: open failed");
         return false;
     }
 
-    char* buffer = new char[200];
-    if (read(fd, buffer, argNum) == -1) {
+    char buffer[4096];
+    ssize_t bytesRead = read(fd, buffer, sizeof(buffer));
+    if (bytesRead == -1) {
         perror("smash error: read failed");
-        delete [] buffer;
+        close(fd);
         return false;
     }
 
-    // should i check if actually argNum argument has recived?
-
-    int counter = 0;
-    for (int i = 0; i < argNum; i++) {
+    string cmdToFind = command + "=";
+    int i = 0;
+    while (i < bytesRead) {
         string setEnv = "";
 
-        while (buffer[counter] != '\0') {
-            setEnv += buffer[counter];
+        while (buffer[i] != '\0') {
+            setEnv += buffer[i];
+            i++;
         }
 
-        if (setEnv == command) {
-            delete [] buffer;
+        if (setEnv.find(cmdToFind) == 0) {
+            close(fd);
             return true;
         }
+        i++;
     }
-    delete [] buffer;
     close(fd);
     return false;
 }
 
 
+void SmallShell::removeEnv(const string command) {
+    string cmdToDelete = command + "=";
+    int i = 0;
+    while (environ[i] != nullptr) {
+        if (strncmp(environ[i], cmdToDelete.c_str(), cmdToDelete.size()) == 0) {
+            int j = i;
+            while (environ[j] != nullptr) {
+                environ[j] = environ[j + 1];
+                j++;
+            }
+            return;
+        }
+        i++;
+    }
+}
 
 
 

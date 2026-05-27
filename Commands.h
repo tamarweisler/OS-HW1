@@ -246,7 +246,7 @@ public:
     void execute() override;
 };
 
-class UnSetEnvCommand : public BuiltInCommand {
+class UnSetEnvCommand : public BuiltInCommand { //ready
 public:
     UnSetEnvCommand(const char *cmd_line);
 
@@ -319,7 +319,11 @@ public:
 
     void removeAliasCommand(const string aliasCommand);
 
-    bool isSetEnv(const string command, const int argNum);
+    bool isSetEnv(const string command);
+
+    void removeEnv(const string command);
+
+
 
     // TODO: add extra methods as needed
 };
