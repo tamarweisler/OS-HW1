@@ -176,8 +176,9 @@ void AliasCommand::execute() {
     }
 
     std::smatch vars;
+    string cmdLineClean = _trim(this->getCmdLine());
 
-    if (!std::regex_match(this->getCmdLine(), vars, std::regex(R"(^alias ([a-zA-Z0-9_]+)='([^']*)'$)"))) {
+    if (!std::regex_match(cmdLineClean, vars, std::regex(R"(^alias ([a-zA-Z0-9_]+)='([^']*)'$)"))) {
         std::cerr << "smash error: alias: invalid alias format" << std::endl ;
         return;
     }
@@ -192,6 +193,25 @@ void AliasCommand::execute() {
 }
 
 
+void UnAliasCommand::execute() {
+    char* args[COMMAND_MAX_ARGS];
+    int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
+
+    if (numArgs == 1) {
+        std::cerr << "smash error: unalias: not enough arguments"<< std::endl;
+        return;
+    }
+
+    for (int i = 1; i < numArgs; i++) {
+        if (!SmallShell::getInstance().isAliasCommand(args[i])) {
+            std::cerr << "smash error: unalias:" << args[i] << " alias does not exist"<< std::endl;
+            return;
+        }
+
+        SmallShell::getInstance().removeAliasCommand(args[i]);
+
+    }
+}
 
 
 
@@ -236,6 +256,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
     if (firstWord.compare("alias") == 0) {
         return new AliasCommand(cmd_line);
+    }
+
+    if (firstWord.compare("unalias") == 0) {
+        return new UnAliasCommand(cmd_line);
     }
 
 
@@ -335,6 +359,19 @@ bool SmallShell::isAliasCommand(const std::string command) {
     }
     return false;
 }
+
+void SmallShell::removeAliasCommand(const std::string aliasCommand) {
+    this->aliasCommands.erase(aliasCommand);
+    string toDelete = aliasCommand + "=";
+
+    for (auto it = this->commandsByOrder.begin(); it != this->commandsByOrder.end(); it++) {
+        if (it->find(toDelete) == 0) {
+            this->commandsByOrder.erase(it);
+            return;
+        }
+    }
+}
+
 
 
 

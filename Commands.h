@@ -312,6 +312,8 @@ public:
 
     bool isAliasCommand(const std::string command);
 
+    void removeAliasCommand(const std::string aliasCommand);
+
     // TODO: add extra methods as needed
 };
 
