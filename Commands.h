@@ -4,6 +4,9 @@
 
 #include <vector>
 #include <map>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -315,6 +318,8 @@ public:
     bool isAliasCommand(const string command);
 
     void removeAliasCommand(const string aliasCommand);
+
+    bool isSetEnv(const string command, const int argNum);
 
     // TODO: add extra methods as needed
 };

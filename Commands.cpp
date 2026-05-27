@@ -97,6 +97,9 @@ AliasCommand::AliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
 
 UnAliasCommand::UnAliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
 
+UnSetEnvCommand::UnSetEnvCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -212,9 +215,22 @@ void UnAliasCommand::execute() {
         }
 
         SmallShell::getInstance().removeAliasCommand(args[i]);
+    }
+}
+
+void UnSetEnvCommand::execute() {
+    char* args[COMMAND_MAX_ARGS];
+    int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
+
+    if (numArgs == 1) {
+        std::cerr << "smash error: unsetenv: not enough arguments" << std::endl;
+    }
+
+    for (int i = 1; i < numArgs; i++) {
 
     }
 }
+
 
 
 
@@ -263,6 +279,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
     if (firstWord.compare("unalias") == 0 || firstWord.compare("unalias&") == 0) {
         return new UnAliasCommand(cmd_line);
+    }
+
+    if (firstWord.compare("unsetenv") == 0 || firstWord.compare("unsetenv&") == 0) {
+        return new UnSetEnvCommand(cmd_line);
     }
 
 
@@ -374,6 +394,44 @@ void SmallShell::removeAliasCommand(const std::string aliasCommand) {
         }
     }
 }
+
+bool SmallShell::isSetEnv(const string command, const int argNum) {
+    string toFind = "/proc" + to_string(this->pid) + "/environ";
+    int fd = open(toFind.c_str(), O_RDONLY);
+    if (fd == -1) {
+        perror("smash error: open failed");
+        return false;
+    }
+
+    char* buffer = new char[200];
+    if (read(fd, buffer, argNum) == -1) {
+        perror("smash error: read failed");
+        delete [] buffer;
+        return false;
+    }
+
+    // should i check if actually argNum argument has recived?
+
+    int counter = 0;
+    for (int i = 0; i < argNum; i++) {
+        string setEnv = "";
+
+        while (buffer[counter] != '\0') {
+            setEnv += buffer[counter];
+        }
+
+        if (setEnv == command) {
+            delete [] buffer;
+            return true;
+        }
+    }
+    delete [] buffer;
+    close(fd);
+    return false;
+}
+
+
+
 
 
 
