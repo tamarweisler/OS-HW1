@@ -3,6 +3,7 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <map>
 
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -129,7 +130,7 @@ public:
 };
 
 
-class ChangeDirCommand : public BuiltInCommand {
+class ChangeDirCommand : public BuiltInCommand { //ready (cd)
     // TODO: Add your data members public:
     char **pLastPwd;
 public:
@@ -220,6 +221,7 @@ public:
 };
 
 class AliasCommand : public BuiltInCommand {
+    std::string command;
 public:
     AliasCommand(const char *cmd_line);
 
@@ -271,6 +273,15 @@ private:
 
     SmallShell();
 
+    std::string savedCommands[8] = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg", "quit", "Kill"}; //an array of the forbidden words to use in alias command
+    std::vector<std::string> commandsByOrder;
+    std::map<std::string, std::string> aliasCommands;
+
+
+    std::string sliceInput(std::string &input);
+
+
+
 public:
     Command *CreateCommand(const char *cmd_line);
 
@@ -292,6 +303,14 @@ public:
     void setCurrPrompt(const std::string &prompt);
 
     pid_t getPid() const;
+
+    void printCommandsByOrder() const;
+
+    void addAliasCommand(const std::string aliasCommand ,const std::string command);
+
+    bool isSavedCommands(const std::string command);
+
+    bool isAliasCommand(const std::string command);
 
     // TODO: add extra methods as needed
 };
