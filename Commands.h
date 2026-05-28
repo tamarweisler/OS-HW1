@@ -6,7 +6,6 @@
 #include <map>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 
 using namespace std;
 
@@ -256,7 +255,7 @@ public:
     void execute() override;
 };
 
-class SysInfoCommand : public BuiltInCommand {
+class SysInfoCommand : public BuiltInCommand { //ready
 public:
     SysInfoCommand(const char *cmd_line);
 
@@ -283,7 +282,7 @@ private:
     map<string, string> aliasCommands;
 
 
-    string sliceInput(string &input);
+    string sliceInput(const string &input);
 
 
 
@@ -322,6 +321,8 @@ public:
     bool isSetEnv(const string command);
 
     void removeEnv(const string command);
+
+    void printSysInfo() const;
 
 
 

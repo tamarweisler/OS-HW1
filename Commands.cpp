@@ -6,8 +6,9 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
-
+#include <fcntl.h>
 #include <regex>
+#include <sys/utsname.h>
 
 using namespace std;
 
@@ -99,6 +100,7 @@ UnAliasCommand::UnAliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) 
 
 UnSetEnvCommand::UnSetEnvCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
 
+SysInfoCommand::SysInfoCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -236,6 +238,10 @@ void UnSetEnvCommand::execute() {
     }
 }
 
+void SysInfoCommand::execute() {
+    SmallShell::getInstance().printSysInfo();
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////
 SmallShell::SmallShell() {
@@ -255,35 +261,38 @@ SmallShell::~SmallShell() {
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_s = _trim(string(cmd_line));
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+    firstWord = sliceInput(firstWord);
 
-
-
-    if (firstWord.compare("chprompt") == 0 || firstWord.compare("chprompt&") == 0) {
+    if (firstWord.compare("chprompt") == 0) {
         return new ChpromptCommand(cmd_line);
     }
 
-    if (firstWord.compare("showpid") == 0 || firstWord.compare("showpid&") == 0) {
+    if (firstWord.compare("showpid") == 0) {
         return new ShowPidCommand(cmd_line);
     }
 
-    if (firstWord.compare("pwd") == 0 || firstWord.compare("pwd&") == 0) {
+    if (firstWord.compare("pwd") == 0) {
         return new GetCurrDirCommand(cmd_line);
     }
 
-    if (firstWord.compare("cd") == 0 || firstWord.compare("cd&") == 0) {
+    if (firstWord.compare("cd") == 0) {
         return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
     }
 
-    if (firstWord.compare("alias") == 0 || firstWord.compare("alias&") == 0) {
+    if (firstWord.compare("alias") == 0) {
         return new AliasCommand(cmd_line);
     }
 
-    if (firstWord.compare("unalias") == 0 || firstWord.compare("unalias&") == 0) {
+    if (firstWord.compare("unalias") == 0) {
         return new UnAliasCommand(cmd_line);
     }
 
-    if (firstWord.compare("unsetenv") == 0 || firstWord.compare("unsetenv&") == 0) {
+    if (firstWord.compare("unsetenv") == 0) {
         return new UnSetEnvCommand(cmd_line);
+    }
+
+    if (firstWord.compare("sysinfo") == 0) {
+        return new SysInfoCommand(cmd_line);
     }
 
 
@@ -334,7 +343,7 @@ pid_t SmallShell::getPid() const {
     return this->pid;
 }
 
-std::string SmallShell::sliceInput(std::string &input) {
+std::string SmallShell::sliceInput(const string& input) {
     std::string command = "";
     int i = 0;
 
@@ -448,6 +457,49 @@ void SmallShell::removeEnv(const string command) {
         i++;
     }
 }
+
+void SmallShell::printSysInfo() const {
+    utsname sys;
+    if (uname(&sys) == -1) {
+        perror("smash error: uname failed");
+        return;
+    }
+
+    string OSName = sys.sysname;
+    string hostname = sys.nodename;
+    string kernelReleaseAndVersion = sys.release;
+    string architecture = sys.machine;
+
+    int fd = open("/proc/uptime", O_RDONLY);
+    if (fd == -1) {
+        perror("smash error: open failed");
+        return;
+    }
+
+    char buffer[128];
+    ssize_t bytesRead = read(fd, buffer, sizeof(buffer) - 1);
+    if (bytesRead == -1) {
+        perror("smash error: read failed");
+        close(fd);
+        return;
+    }
+    close(fd);
+    buffer[bytesRead] = '\0';
+    double uptime = atof(buffer);
+    time_t current_time = time(NULL);
+    time_t boot_time = current_time - (time_t)uptime;
+
+    tm * timeinfo = localtime(&boot_time);
+    char time_str[80];
+    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", timeinfo);
+
+    std::cout << "System: " << OSName << std::endl;
+    std::cout << "Hostname: " << hostname << std::endl;
+    std::cout << "Kernel: " << kernelReleaseAndVersion << std::endl;
+    std::cout << "Architecture: " << architecture << std::endl;
+    std::cout << "Boot Time: " << time_str << std::endl;
+}
+
 
 
 
