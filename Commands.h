@@ -324,8 +324,6 @@ public:
 
     void removeEnv(const string& command);
 
-    void printSysInfo() const;
-
     void printTotalDiskUsage(const string& path);
 
     // TODO: add extra methods as needed

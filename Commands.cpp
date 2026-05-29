@@ -249,9 +249,56 @@ void UnSetEnvCommand::execute() {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////
+
 void SysInfoCommand::execute() {
-    SmallShell::getInstance().printSysInfo();
+    utsname sys;
+    if (uname(&sys) == -1) {
+        perror("smash error: uname failed");
+        return;
+    }
+
+    string OSName = sys.sysname;
+    string hostname = sys.nodename;
+    string kernelReleaseAndVersion = sys.release;
+    string architecture = sys.machine;
+
+
+    int fd = open("/proc/uptime", O_RDONLY);
+    if (fd == -1) {
+        perror("smash error: open failed");
+        return;
+    }
+
+    char buff[PATH_MAX];
+    ssize_t bytesRead = read(fd, buff, PATH_MAX);
+    if (bytesRead == -1) {
+        perror("smash error: read failed");
+        close(fd);
+        return;
+    }
+
+    string data(buff, bytesRead);
+    int counter = 0;
+    string upTime = "";
+    while (data[counter] != ' ' && counter < data.size()) {
+        upTime += data[counter];
+        counter++;
+    }
+
+    time_t bootTime = time(nullptr) - stod(upTime);
+    tm* timeToPrint = localtime(&bootTime);
+    char buffer[80];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeToPrint);
+    close(fd);
+    cout << "System: " << OSName << endl;
+    cout << "Hostname: " << hostname << endl;
+    cout << "Kernel: " << kernelReleaseAndVersion << endl;
+    cout << "Architecture: " << architecture << endl;
+    cout << "Boot Time: " << buffer << endl;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////
 
 void DiskUsageCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
@@ -263,7 +310,6 @@ void DiskUsageCommand::execute() {
     }
 
     dirSize = 0;
-
     if (numArgs == 1) {
         char currDir[PATH_MAX];
         if (getcwd(currDir, PATH_MAX) == nullptr) {
@@ -276,6 +322,7 @@ void DiskUsageCommand::execute() {
     SmallShell::getInstance().printTotalDiskUsage(args[1]);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////
 
 void WhoAmICommand::execute() {
     uid_t uid = getuid();
@@ -553,48 +600,6 @@ void SmallShell::removeEnv(const string& command) {
         }
         i++;
     }
-}
-
-void SmallShell::printSysInfo() const {
-    utsname sys{};
-    if (uname(&sys) == -1) {
-        perror("smash error: uname failed");
-        return;
-    }
-
-    string OSName = sys.sysname;
-    string hostname = sys.nodename;
-    string kernelReleaseAndVersion = sys.release;
-    string architecture = sys.machine;
-
-    int fd = open("/proc/uptime", O_RDONLY);
-    if (fd == -1) {
-        perror("smash error: open failed");
-        return;
-    }
-
-    char buffer[128];
-    ssize_t bytesRead = read(fd, buffer, sizeof(buffer) - 1);
-    if (bytesRead == -1) {
-        perror("smash error: read failed");
-        close(fd);
-        return;
-    }
-    close(fd);
-    buffer[bytesRead] = '\0';
-    double uptime = atof(buffer);
-    time_t current_time = time(nullptr);
-    time_t boot_time = current_time - (time_t)uptime;
-
-    tm* timeinfo = localtime(&boot_time);
-    char time_str[80];
-    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", timeinfo);
-
-    cout << "System: " << OSName << endl;
-    cout << "Hostname: " << hostname << endl;
-    cout << "Kernel: " << kernelReleaseAndVersion << endl;
-    cout << "Architecture: " << architecture << endl;
-    cout << "Boot Time: " << time_str << endl;
 }
 
 int SmallShell::fileSize(const char* input, const struct stat *pStat, int flag, struct FTW *pFtw) {
