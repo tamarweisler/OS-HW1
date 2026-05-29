@@ -71,7 +71,7 @@ public:
     void execute() override;
 };
 
-class DiskUsageCommand : public Command {
+class DiskUsageCommand : public Command { //ready
 public:
     DiskUsageCommand(const char *cmd_line);
 
@@ -284,6 +284,8 @@ private:
 
     string sliceInput(const string &input);
 
+   static int fileSize(const char* input, const struct stat *pStat, int flag, struct FTW *pFtw);
+
 
 
 public:
@@ -304,27 +306,27 @@ public:
 
     string getCurrPrompt() const;
 
-    void setCurrPrompt(const string &prompt);
+    void setCurrPrompt(const string& prompt);
 
     pid_t getPid() const;
 
     void printCommandsByOrder() const;
 
-    void addAliasCommand(const string aliasCommand ,const string command);
+    void addAliasCommand(const string& aliasCommand ,const string& command);
 
-    bool isSavedCommands(const string command);
+    bool isSavedCommands(const string& command);
 
-    bool isAliasCommand(const string command);
+    bool isAliasCommand(const string& command);
 
-    void removeAliasCommand(const string aliasCommand);
+    void removeAliasCommand(const string& aliasCommand);
 
-    bool isSetEnv(const string command);
+    bool isSetEnv(const string& command);
 
-    void removeEnv(const string command);
+    void removeEnv(const string& command);
 
     void printSysInfo() const;
 
-
+    void printTotalDiskUsage(const string& path);
 
     // TODO: add extra methods as needed
 };

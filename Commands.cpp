@@ -1,3 +1,4 @@
+#define _GUN_SOURCE
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
@@ -6,13 +7,21 @@
 #include <sys/wait.h>
 #include <iomanip>
 #include "Commands.h"
-#include <fcntl.h>
 #include <regex>
 #include <sys/utsname.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <fcntl.h>
+#include <ftw.h>
+
+#include "../../../CLion 2025.1.1/bin/mingw/x86_64-w64-mingw32/include/limits.h"
+
 
 using namespace std;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
+long long dirSize = 0;
 
 #if 0
 #define FUNC_ENTRY()  \
@@ -101,6 +110,9 @@ UnAliasCommand::UnAliasCommand(const char *cmd_line) : BuiltInCommand(cmd_line) 
 UnSetEnvCommand::UnSetEnvCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
 
 SysInfoCommand::SysInfoCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {}
+
+DiskUsageCommand::DiskUsageCommand(const char *cmd_line) : Command(cmd_line) {}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -231,7 +243,7 @@ void UnSetEnvCommand::execute() {
 
     for (int i = 1; i < numArgs; i++) {
         if (!SmallShell::getInstance().isSetEnv(args[i])) {
-            std::cerr << "smash error: unsetenv: " << args[i] << " does not exist" << std::endl;
+            cerr << "smash error: unsetenv: " << args[i] << " does not exist" << endl;
             return;
         }
         SmallShell::getInstance().removeEnv(args[i]);
@@ -240,6 +252,29 @@ void UnSetEnvCommand::execute() {
 
 void SysInfoCommand::execute() {
     SmallShell::getInstance().printSysInfo();
+}
+
+void DiskUsageCommand::execute() {
+    char* args[COMMAND_MAX_ARGS];
+    int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
+
+    if (numArgs > 2) {
+        cerr << "smash error: du: too many arguments" << endl;
+        return;
+    }
+
+    dirSize = 0;
+
+    if (numArgs == 1) {
+        char currDir[PATH_MAX];
+        if (getcwd(currDir, PATH_MAX) == nullptr) {
+            perror("smash error: getcwd failed");
+            return;
+        }
+        SmallShell::getInstance().printTotalDiskUsage(currDir);
+        return;
+    }
+    SmallShell::getInstance().printTotalDiskUsage(args[1]);
 }
 
 
@@ -263,36 +298,40 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
     firstWord = sliceInput(firstWord);
 
-    if (firstWord.compare("chprompt") == 0) {
+    if (firstWord == "chprompt") {
         return new ChpromptCommand(cmd_line);
     }
 
-    if (firstWord.compare("showpid") == 0) {
+    if (firstWord == "showpid") {
         return new ShowPidCommand(cmd_line);
     }
 
-    if (firstWord.compare("pwd") == 0) {
+    if (firstWord == "pwd") {
         return new GetCurrDirCommand(cmd_line);
     }
 
-    if (firstWord.compare("cd") == 0) {
+    if (firstWord == "cd") {
         return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
     }
 
-    if (firstWord.compare("alias") == 0) {
+    if (firstWord == "alias") {
         return new AliasCommand(cmd_line);
     }
 
-    if (firstWord.compare("unalias") == 0) {
+    if (firstWord == "unalias") {
         return new UnAliasCommand(cmd_line);
     }
 
-    if (firstWord.compare("unsetenv") == 0) {
+    if (firstWord == "unsetenv") {
         return new UnSetEnvCommand(cmd_line);
     }
 
-    if (firstWord.compare("sysinfo") == 0) {
+    if (firstWord == "sysinfo") {
         return new SysInfoCommand(cmd_line);
+    }
+
+    if (firstWord == "du") {
+        return new DiskUsageCommand(cmd_line);
     }
 
 
@@ -343,11 +382,11 @@ pid_t SmallShell::getPid() const {
     return this->pid;
 }
 
-std::string SmallShell::sliceInput(const string& input) {
-    std::string command = "";
+string SmallShell::sliceInput(const string& input) {
+    string command;
     int i = 0;
 
-    if (input.size() == 0) {
+    if (input.empty()) {
         return "";
     }
 
@@ -367,8 +406,8 @@ void SmallShell::printCommandsByOrder() const {
     }
 }
 
-void SmallShell::addAliasCommand(const string aliasCommand, const string sCommand) {
-    std::string command(sCommand);
+void SmallShell::addAliasCommand(const string& aliasCommand, const string& sCommand) {
+    string command(sCommand);
     if (!this->aliasCommands.insert({aliasCommand, command}).second) {
         perror("smash error: alias failed");
     }else {
@@ -377,7 +416,7 @@ void SmallShell::addAliasCommand(const string aliasCommand, const string sComman
     }
 }
 
-bool SmallShell::isSavedCommands(const std::string command) {
+bool SmallShell::isSavedCommands(const string& command) {
     for(int i = 0; i < 7; i++){
         if(command == this->savedCommands[i]) { //the alias name conflicts with reserved keyword
             return true;
@@ -386,14 +425,14 @@ bool SmallShell::isSavedCommands(const std::string command) {
     return false;
 }
 
-bool SmallShell::isAliasCommand(const std::string command) {
+bool SmallShell::isAliasCommand(const string& command) {
     if (this->aliasCommands.find(command) != aliasCommands.end()) { //the alias name conflicts with existing alias
         return true;
     }
     return false;
 }
 
-void SmallShell::removeAliasCommand(const std::string aliasCommand) {
+void SmallShell::removeAliasCommand(const string& aliasCommand) {
     this->aliasCommands.erase(aliasCommand);
     string toDelete = aliasCommand + "=";
 
@@ -405,7 +444,7 @@ void SmallShell::removeAliasCommand(const std::string aliasCommand) {
     }
 }
 
-bool SmallShell::isSetEnv(const string command) {
+bool SmallShell::isSetEnv(const string& command) {
     string toFind = "/proc/" + to_string(this->pid) + "/environ";
     int fd = open(toFind.c_str(), O_RDONLY);
     if (fd == -1) {
@@ -424,7 +463,7 @@ bool SmallShell::isSetEnv(const string command) {
     string cmdToFind = command + "=";
     int i = 0;
     while (i < bytesRead) {
-        string setEnv = "";
+        string setEnv;
 
         while (buffer[i] != '\0') {
             setEnv += buffer[i];
@@ -442,7 +481,7 @@ bool SmallShell::isSetEnv(const string command) {
 }
 
 
-void SmallShell::removeEnv(const string command) {
+void SmallShell::removeEnv(const string& command) {
     string cmdToDelete = command + "=";
     int i = 0;
     while (environ[i] != nullptr) {
@@ -459,7 +498,7 @@ void SmallShell::removeEnv(const string command) {
 }
 
 void SmallShell::printSysInfo() const {
-    utsname sys;
+    utsname sys{};
     if (uname(&sys) == -1) {
         perror("smash error: uname failed");
         return;
@@ -486,19 +525,39 @@ void SmallShell::printSysInfo() const {
     close(fd);
     buffer[bytesRead] = '\0';
     double uptime = atof(buffer);
-    time_t current_time = time(NULL);
+    time_t current_time = time(nullptr);
     time_t boot_time = current_time - (time_t)uptime;
 
-    tm * timeinfo = localtime(&boot_time);
+    tm* timeinfo = localtime(&boot_time);
     char time_str[80];
     strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", timeinfo);
 
-    std::cout << "System: " << OSName << std::endl;
-    std::cout << "Hostname: " << hostname << std::endl;
-    std::cout << "Kernel: " << kernelReleaseAndVersion << std::endl;
-    std::cout << "Architecture: " << architecture << std::endl;
-    std::cout << "Boot Time: " << time_str << std::endl;
+    cout << "System: " << OSName << endl;
+    cout << "Hostname: " << hostname << endl;
+    cout << "Kernel: " << kernelReleaseAndVersion << endl;
+    cout << "Architecture: " << architecture << endl;
+    cout << "Boot Time: " << time_str << endl;
 }
+
+
+
+int SmallShell::fileSize(const char* input, const struct stat *pStat, int flag, struct FTW *pFtw) {
+    if (flag != FTW_SL) {
+        dirSize += pStat->st_size;
+    }
+    return 0;
+}
+
+void SmallShell::printTotalDiskUsage(const string& path) {
+    if (nftw(path.c_str(), fileSize, 20, FTW_PHYS) == -1) {
+        perror("smash error: nftw failed");
+        return;
+    }
+    dirSize = (dirSize + 1023) / 1024;
+    cout << "Total disk usage: " << dirSize << " KB" << endl;
+}
+
+
 
 
 
