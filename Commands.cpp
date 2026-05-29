@@ -21,7 +21,7 @@
 using namespace std;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
-long long dirSize = 0;
+long long DIR_SIZE = 0;
 
 #if 0
 #define FUNC_ENTRY()  \
@@ -115,9 +115,8 @@ DiskUsageCommand::DiskUsageCommand(const char *cmd_line) : Command(cmd_line) {}
 
 WhoAmICommand::WhoAmICommand(const char *cmd_line) : Command(cmd_line) {}
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void ChpromptCommand::execute() {
+void ChpromptCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
     int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
 
@@ -131,12 +130,14 @@ WhoAmICommand::WhoAmICommand(const char *cmd_line) : Command(cmd_line) {}
     }
 }
 
+
 void ShowPidCommand::execute() {
     pid_t pid = SmallShell::getInstance().getPid();
     if (pid != -1) {
         std::cout << "smash pid is " << pid << std::endl ;
     }
 }
+
 
 void GetCurrDirCommand::execute() {
     char buff[PATH_MAX];
@@ -145,6 +146,7 @@ void GetCurrDirCommand::execute() {
         std::cout << buff << std::endl ;
     }
 }
+
 
 void ChangeDirCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
@@ -184,7 +186,6 @@ void ChangeDirCommand::execute() {
     perror("smash error: chdir failed");
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////
 
 void AliasCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
@@ -231,6 +232,58 @@ void UnAliasCommand::execute() {
     }
 }
 
+bool UnSetEnvCommand::isSetEnv(const string &command) {
+    string toFind = "/proc/" + to_string(SmallShell::getInstance().getPid()) + "/environ";
+    int fd = open(toFind.c_str(), O_RDONLY);
+    if (fd == -1) {
+        perror("smash error: open failed");
+        return false;
+    }
+
+    char buffer[4096];
+    ssize_t bytesRead = read(fd, buffer, sizeof(buffer));
+    if (bytesRead == -1) {
+        perror("smash error: read failed");
+        close(fd);
+        return false;
+    }
+
+    string cmdToFind = command + "=";
+    int i = 0;
+    while (i < bytesRead) {
+        string setEnv;
+
+        while (buffer[i] != '\0') {
+            setEnv += buffer[i];
+            i++;
+        }
+
+        if (setEnv.find(cmdToFind) == 0) {
+            close(fd);
+            return true;
+        }
+        i++;
+    }
+    close(fd);
+    return false;
+}
+
+void UnSetEnvCommand::removeEnv(const string &command) {
+    string cmdToDelete = command + "=";
+    int i = 0;
+    while (environ[i] != nullptr) {
+        if (strncmp(environ[i], cmdToDelete.c_str(), cmdToDelete.size()) == 0) {
+            int j = i;
+            while (environ[j] != nullptr) {
+                environ[j] = environ[j + 1];
+                j++;
+            }
+            return;
+        }
+        i++;
+    }
+}
+
 void UnSetEnvCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
     int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
@@ -241,15 +294,14 @@ void UnSetEnvCommand::execute() {
     }
 
     for (int i = 1; i < numArgs; i++) {
-        if (!SmallShell::getInstance().isSetEnv(args[i])) {
+        if (!isSetEnv(args[i])) {
             cerr << "smash error: unsetenv: " << args[i] << " does not exist" << endl;
             return;
         }
-        SmallShell::getInstance().removeEnv(args[i]);
+        removeEnv(args[i]);
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////
 
 void SysInfoCommand::execute() {
     utsname sys;
@@ -281,7 +333,7 @@ void SysInfoCommand::execute() {
     string data(buff, bytesRead);
     int counter = 0;
     string upTime = "";
-    while (data[counter] != ' ' && counter < data.size()) {
+    while (counter < data.size() && data[counter] != ' ') {
         upTime += data[counter];
         counter++;
     }
@@ -298,7 +350,13 @@ void SysInfoCommand::execute() {
     cout << "Boot Time: " << buffer << endl;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////
+
+int DiskUsageCommand::fileSize(const char *input, const struct stat *pStat, int flag, struct FTW *pFtw) {
+    if (flag != FTW_SL) {
+        DIR_SIZE += pStat->st_size;
+    }
+    return 0;
+}
 
 void DiskUsageCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
@@ -309,20 +367,26 @@ void DiskUsageCommand::execute() {
         return;
     }
 
-    dirSize = 0;
+    DIR_SIZE = 0;
+    int result;
     if (numArgs == 1) {
         char currDir[PATH_MAX];
         if (getcwd(currDir, PATH_MAX) == nullptr) {
             perror("smash error: getcwd failed");
             return;
         }
-        SmallShell::getInstance().printTotalDiskUsage(currDir);
+        result = nftw(currDir, fileSize, 20, FTW_PHYS);
+    }else {
+        result = nftw(args[1], fileSize, 20, FTW_PHYS);
+    }
+    if (result == -1) {
+        perror("smash error: nftw failed");
         return;
     }
-    SmallShell::getInstance().printTotalDiskUsage(args[1]);
-}
 
-///////////////////////////////////////////////////////////////////////////////////////////
+    DIR_SIZE = (DIR_SIZE + 1023) / 1024;
+    cout << "Total disk usage: " << DIR_SIZE << " KB" << endl;
+}
 
 void WhoAmICommand::execute() {
     uid_t uid = getuid();
@@ -383,7 +447,7 @@ void WhoAmICommand::execute() {
     cout << homeDir << endl;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
+
 SmallShell::SmallShell() {
     this->currPrompt = "smash";
     this->pid = getpid();
@@ -512,6 +576,7 @@ void SmallShell::printCommandsByOrder() const {
     }
 }
 
+
 void SmallShell::addAliasCommand(const string& aliasCommand, const string& sCommand) {
     string command(sCommand);
     if (!this->aliasCommands.insert({aliasCommand, command}).second) {
@@ -522,6 +587,7 @@ void SmallShell::addAliasCommand(const string& aliasCommand, const string& sComm
     }
 }
 
+
 bool SmallShell::isSavedCommands(const string& command) {
     for(int i = 0; i < 7; i++){
         if(command == this->savedCommands[i]) { //the alias name conflicts with reserved keyword
@@ -531,12 +597,14 @@ bool SmallShell::isSavedCommands(const string& command) {
     return false;
 }
 
+
 bool SmallShell::isAliasCommand(const string& command) {
     if (this->aliasCommands.find(command) != aliasCommands.end()) { //the alias name conflicts with existing alias
         return true;
     }
     return false;
 }
+
 
 void SmallShell::removeAliasCommand(const string& aliasCommand) {
     this->aliasCommands.erase(aliasCommand);
@@ -550,73 +618,8 @@ void SmallShell::removeAliasCommand(const string& aliasCommand) {
     }
 }
 
-bool SmallShell::isSetEnv(const string& command) {
-    string toFind = "/proc/" + to_string(this->pid) + "/environ";
-    int fd = open(toFind.c_str(), O_RDONLY);
-    if (fd == -1) {
-        perror("smash error: open failed");
-        return false;
-    }
 
-    char buffer[4096];
-    ssize_t bytesRead = read(fd, buffer, sizeof(buffer));
-    if (bytesRead == -1) {
-        perror("smash error: read failed");
-        close(fd);
-        return false;
-    }
 
-    string cmdToFind = command + "=";
-    int i = 0;
-    while (i < bytesRead) {
-        string setEnv;
-
-        while (buffer[i] != '\0') {
-            setEnv += buffer[i];
-            i++;
-        }
-
-        if (setEnv.find(cmdToFind) == 0) {
-            close(fd);
-            return true;
-        }
-        i++;
-    }
-    close(fd);
-    return false;
-}
-
-void SmallShell::removeEnv(const string& command) {
-    string cmdToDelete = command + "=";
-    int i = 0;
-    while (environ[i] != nullptr) {
-        if (strncmp(environ[i], cmdToDelete.c_str(), cmdToDelete.size()) == 0) {
-            int j = i;
-            while (environ[j] != nullptr) {
-                environ[j] = environ[j + 1];
-                j++;
-            }
-            return;
-        }
-        i++;
-    }
-}
-
-int SmallShell::fileSize(const char* input, const struct stat *pStat, int flag, struct FTW *pFtw) {
-    if (flag != FTW_SL) {
-        dirSize += pStat->st_size;
-    }
-    return 0;
-}
-
-void SmallShell::printTotalDiskUsage(const string& path) {
-    if (nftw(path.c_str(), fileSize, 20, FTW_PHYS) == -1) {
-        perror("smash error: nftw failed");
-        return;
-    }
-    dirSize = (dirSize + 1023) / 1024;
-    cout << "Total disk usage: " << dirSize << " KB" << endl;
-}
 
 
 

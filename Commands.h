@@ -72,6 +72,7 @@ public:
 };
 
 class DiskUsageCommand : public Command { //ready
+   static int fileSize(const char* input, const struct stat *pStat, int flag, struct FTW *pFtw);
 public:
     DiskUsageCommand(const char *cmd_line);
 
@@ -246,6 +247,9 @@ public:
 };
 
 class UnSetEnvCommand : public BuiltInCommand { //ready
+    bool isSetEnv(const string& command);
+
+    void removeEnv(const string& command);
 public:
     UnSetEnvCommand(const char *cmd_line);
 
@@ -284,9 +288,6 @@ private:
 
     string sliceInput(const string &input);
 
-   static int fileSize(const char* input, const struct stat *pStat, int flag, struct FTW *pFtw);
-
-
 
 public:
     Command *CreateCommand(const char *cmd_line);
@@ -319,12 +320,6 @@ public:
     bool isAliasCommand(const string& command);
 
     void removeAliasCommand(const string& aliasCommand);
-
-    bool isSetEnv(const string& command);
-
-    void removeEnv(const string& command);
-
-    void printTotalDiskUsage(const string& path);
 
     // TODO: add extra methods as needed
 };
