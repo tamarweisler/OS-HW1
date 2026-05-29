@@ -286,16 +286,19 @@ void AliasCommand::execute() {
         return;
     }
 
-    std::smatch vars;
+    smatch vars;
     string cmdLineClean = _trim(this->getCmdLine());
 
-    if (!std::regex_match(cmdLineClean, vars, std::regex(R"(^alias ([a-zA-Z0-9_]+)='([^']*)'$)"))) {
-        std::cerr << "smash error: alias: invalid alias format" << std::endl ;
-        return;
+    try {
+        if (!regex_match(cmdLineClean, vars, regex("^alias ([a-zA-Z0-9_]+)='([^']*)'$"))) {
+            cerr << "smash error: alias: invalid alias format" << endl ;
+        }
+    }catch (const regex_error& e) {
+        cerr << "smash error: alias: invalid alias format" << endl ;
     }
 
     if (SmallShell::getInstance().isSavedCommands(vars[1].str()) || SmallShell::getInstance().isAliasCommand(vars[1].str())) {
-        std::cerr << "smash error: alias: " << vars[1].str() << "already exists or is reserved command" << std::endl ;
+        cerr << "smash error: alias: " << vars[1].str() << "already exists or is reserved command" << endl ;
         return;
     }
 
@@ -552,51 +555,29 @@ SmallShell::~SmallShell() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
-    string cmd_s = _trim(string(cmd_line));
-    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-    firstWord = sliceInput(firstWord);
+    string cmd_trimmed = _trim(string(cmd_line));
+    size_t first_space = cmd_trimmed.find_first_of(WHITESPACE);
+    std::string first_word;
 
-    if (firstWord == "chprompt") {
-        return new ChpromptCommand(cmd_line);
+    if (first_space == std::string::npos) {
+        first_word = cmd_trimmed;
+    }
+    else {
+        first_word = cmd_trimmed.substr(0, first_space);
     }
 
-    if (firstWord == "showpid") {
-        return new ShowPidCommand(cmd_line);
-    }
-
-    if (firstWord == "pwd") {
-        return new GetCurrDirCommand(cmd_line);
-    }
-
-    if (firstWord == "cd") {
-        return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
-    }
-
-    if (firstWord == "alias") {
+    if (first_word == "alias") {
         return new AliasCommand(cmd_line);
     }
 
-    if (firstWord == "unalias") {
-        return new UnAliasCommand(cmd_line);
+    if (this->aliasCommands.find(first_word) != this->aliasCommands.end()) {
+        if (first_space == std::string::npos) {
+            return CreateCommand(aliasCommands[first_word].c_str());
+        }
+        string newCmd = aliasCommands[first_word] + cmd_trimmed.substr(first_space, cmd_trimmed.size() - 1);
+        return CreateCommand(newCmd.c_str());
     }
 
-    if (firstWord == "unsetenv") {
-        return new UnSetEnvCommand(cmd_line);
-    }
-
-    if (firstWord == "sysinfo") {
-        return new SysInfoCommand(cmd_line);
-    }
-
-    if (firstWord == "du") {
-        return new DiskUsageCommand(cmd_line);
-    }
-
-    if (firstWord == "whoami") {
-        return new WhoAmICommand(cmd_line);
-    }
-
-    std::string cmd_trimmed = _trim(std::string(cmd_line));
     for (char c: cmd_trimmed) {
         if (c == '|')
             return new PipeCommand(cmd_line);
@@ -609,15 +590,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         _removeBackgroundSign(cmd_buffer.data());
         cmd_trimmed = _trim(std::string(cmd_buffer.data()));
     }
-    size_t first_space = cmd_trimmed.find_first_of(WHITESPACE);
-    std::string first_word;
 
-    if (first_space == std::string::npos) {
-        first_word = cmd_trimmed;
-    }
-    else {
-        first_word = cmd_trimmed.substr(0, first_space);
-    }
 
     if (first_word == "jobs") {
         return new JobsCommand(cmd_trimmed.c_str(), &jobs);
@@ -634,6 +607,43 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     if (first_word == "quit") {
         return new QuitCommand(cmd_trimmed.c_str(), &jobs);
     }
+
+    if (first_word == "chprompt") {
+        return new ChpromptCommand(cmd_line);
+    }
+
+    if (first_word == "showpid") {
+        return new ShowPidCommand(cmd_line);
+    }
+
+    if (first_word == "pwd") {
+        return new GetCurrDirCommand(cmd_line);
+    }
+
+    if (first_word == "cd") {
+        return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
+    }
+
+    if (first_word == "unalias") {
+        return new UnAliasCommand(cmd_line);
+    }
+
+    if (first_word == "unsetenv") {
+        return new UnSetEnvCommand(cmd_line);
+    }
+
+    if (first_word == "sysinfo") {
+        return new SysInfoCommand(cmd_line);
+    }
+
+    if (first_word == "du") {
+        return new DiskUsageCommand(cmd_line);
+    }
+
+    if (first_word == "whoami") {
+        return new WhoAmICommand(cmd_line);
+    }
+
     return new ExternalCommand(cmd_line);
 }
 
@@ -649,12 +659,11 @@ void SmallShell::executeCommand(const char *cmd_line) {
         return;
     jobs.removeFinishedJobs();
     Command* cmd = CreateCommand(cmd_line);
-    if (cmd == nullptr) {
+    if (cmd != nullptr) {
+        cmd->execute();
         delete cmd;
-        return;
     }
-    cmd->execute();
-    delete cmd;
+
 
     // Please note that you must fork a smash process for some commands (e.g., external commands....)
 }
@@ -690,19 +699,17 @@ string SmallShell::sliceInput(const string& input) {
 }
 
 void SmallShell::printCommandsByOrder() const {
-    for (int i = 0; i < this->commandsByOrder.size(); i++) {
-        std::cout << commandsByOrder[i] << std::endl;
+    for (string aliasC : commandsByOrder) {
+        cout << aliasC << "='" << aliasCommands.find(aliasC)->second << "'" << endl;
     }
 }
 
 
 void SmallShell::addAliasCommand(const string& aliasCommand, const string& sCommand) {
-    string command(sCommand);
-    if (!this->aliasCommands.insert({aliasCommand, command}).second) {
+    if (!this->aliasCommands.insert({aliasCommand, sCommand}).second) {
         perror("smash error: alias failed");
     }else {
-        std::string aliasToList = aliasCommand + "=" + "'" + sCommand + "'";
-        this->commandsByOrder.push_back(aliasToList);
+        this->commandsByOrder.push_back(aliasCommand);
     }
 }
 
