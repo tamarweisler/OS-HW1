@@ -113,7 +113,7 @@ SysInfoCommand::SysInfoCommand(const char *cmd_line) : BuiltInCommand(cmd_line) 
 
 DiskUsageCommand::DiskUsageCommand(const char *cmd_line) : Command(cmd_line) {}
 
-
+WhoAmICommand::WhoAmICommand(const char *cmd_line) : Command(cmd_line) {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -203,7 +203,6 @@ void AliasCommand::execute() {
         return;
     }
 
-
     if (SmallShell::getInstance().isSavedCommands(vars[1].str()) || SmallShell::getInstance().isAliasCommand(vars[1].str())) {
         std::cerr << "smash error: alias: " << vars[1].str() << "already exists or is reserved command" << std::endl ;
         return;
@@ -278,12 +277,70 @@ void DiskUsageCommand::execute() {
 }
 
 
+void WhoAmICommand::execute() {
+    uid_t uid = getuid();
+    if (uid == -1) {
+        perror("smash error: getuid failed");
+    }
+
+    gid_t gid = getgid();
+    if (gid == -1) {
+        perror("smash error: getgid failed");
+    }
+
+    int fd = open("/etc/passwd", O_RDONLY);
+    if (fd == -1) {
+        perror("smash error: open failed");
+        return;
+    }
+
+    char buff[PATH_MAX];
+    ssize_t bytesRead = read(fd, buff, PATH_MAX);
+    if (bytesRead == -1) {
+        perror("smash error: read failed");
+        close(fd);
+        return;
+    }
+
+    string data(buff, bytesRead);
+    istringstream ss(data);
+    string line;
+
+    string username;
+    string homeDir;
+
+    while (getline(ss, line)) {
+        int counter = 0;
+        int pArray = 0;
+        string lineData[7] = {};
+        while (counter < line.size() && pArray < 7) {
+            if (line[counter] == ':') {
+                pArray++;
+            }else {
+                lineData[pArray] += line[counter];
+            }
+            counter++;
+        }
+
+        if (lineData[2] == to_string(uid) && lineData[3] == to_string(gid)) {
+            username = lineData[0];
+            homeDir = lineData[5];
+            break;
+        }
+    }
+
+    close(fd);
+    cout << username << endl;
+    cout << uid << endl;
+    cout << gid << endl;
+    cout << homeDir << endl;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 SmallShell::SmallShell() {
     this->currPrompt = "smash";
     this->pid = getpid();
     this->prevWorkDir = nullptr;
-
 }
 
 SmallShell::~SmallShell() {
@@ -334,6 +391,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new DiskUsageCommand(cmd_line);
     }
 
+    if (firstWord == "whoami") {
+        return new WhoAmICommand(cmd_line);
+    }
+
 
 
     // For example:
@@ -367,8 +428,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
     // Please note that you must fork a smash process for some commands (e.g., external commands....)
 }
-
-
 
 std::string SmallShell::getCurrPrompt() const {
     return this->currPrompt;
@@ -480,7 +539,6 @@ bool SmallShell::isSetEnv(const string& command) {
     return false;
 }
 
-
 void SmallShell::removeEnv(const string& command) {
     string cmdToDelete = command + "=";
     int i = 0;
@@ -539,8 +597,6 @@ void SmallShell::printSysInfo() const {
     cout << "Boot Time: " << time_str << endl;
 }
 
-
-
 int SmallShell::fileSize(const char* input, const struct stat *pStat, int flag, struct FTW *pFtw) {
     if (flag != FTW_SL) {
         dirSize += pStat->st_size;
@@ -556,8 +612,6 @@ void SmallShell::printTotalDiskUsage(const string& path) {
     dirSize = (dirSize + 1023) / 1024;
     cout << "Total disk usage: " << dirSize << " KB" << endl;
 }
-
-
 
 
 

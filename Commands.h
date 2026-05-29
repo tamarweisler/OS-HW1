@@ -81,7 +81,7 @@ public:
     void execute() override;
 };
 
-class WhoAmICommand : public Command {
+class WhoAmICommand : public Command { //ready
 public:
     WhoAmICommand(const char *cmd_line);
 
