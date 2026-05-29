@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <map>
-#include <sys/types.h>
 #include <sys/stat.h>
 
 using namespace std;
@@ -16,19 +15,19 @@ class Command {
     // TODO: Add your data members
 protected:
     std::string cmd_line;
+    pid_t pid;
 public:
     Command(const char *cmd_line);
-
     virtual ~Command();
-
     virtual void execute() = 0;
-
     std::string getCmdLine() const;
-
+    void setPid(pid_t pid);
+    pid_t getPid() const;
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
 };
+
 
 class BuiltInCommand : public Command {
 public:
@@ -147,12 +146,12 @@ public:
     void execute() override;
 };
 
-
-
 class JobsList;
 
 class QuitCommand : public BuiltInCommand {
-    // TODO: Add your data members public:
+private:
+    JobsList* jobs;
+public:
     QuitCommand(const char *cmd_line, JobsList *jobs);
 
     virtual ~QuitCommand() {
@@ -164,8 +163,16 @@ class QuitCommand : public BuiltInCommand {
 class JobsList {
 public:
     class JobEntry {
-        // TODO: Add your data members
+    public:
+        int job_id;
+        pid_t pid;
+        std::string cmd_line;
+        bool stopped;
+
+        JobEntry(int job_id, pid_t pid, const std::string& cmd_line, bool stopped);
     };
+private:
+    std::vector<JobEntry> jobs;
 
     // TODO: Add your data members
 public:
@@ -173,7 +180,7 @@ public:
 
     ~JobsList();
 
-    void addJob(Command *cmd, bool isStopped = false);
+    void addJob(Command *cmd, bool Stopped = false);
 
     void printJobsList();
 
@@ -193,7 +200,7 @@ public:
 };
 
 class JobsCommand : public BuiltInCommand {
-    // TODO: Add your data members
+    JobsList* jobs;
 public:
     JobsCommand(const char *cmd_line, JobsList *jobs);
 
@@ -204,7 +211,7 @@ public:
 };
 
 class KillCommand : public BuiltInCommand {
-    // TODO: Add your data members
+    JobsList* jobs;
 public:
     KillCommand(const char *cmd_line, JobsList *jobs);
 
@@ -215,7 +222,7 @@ public:
 };
 
 class ForegroundCommand : public BuiltInCommand {
-    // TODO: Add your data members
+    JobsList* jobs;
 public:
     ForegroundCommand(const char *cmd_line, JobsList *jobs);
 
@@ -269,8 +276,6 @@ public:
     void execute() override;
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class SmallShell {
 private:
     // TODO: Add your data members
@@ -278,16 +283,16 @@ private:
     std::string currPrompt;
     pid_t pid;
     char* prevWorkDir;
-
-    SmallShell();
+    JobsList jobs;
+    pid_t foreground_pid;
+    std::string foreground_cmd;
 
     string savedCommands[8] = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg", "quit", "Kill"}; //an array of the forbidden words to use in alias command
     vector<string> commandsByOrder;
     map<string, string> aliasCommands;
 
-
+    SmallShell();
     string sliceInput(const string &input);
-
 
 public:
     Command *CreateCommand(const char *cmd_line);
@@ -309,7 +314,7 @@ public:
 
     void setCurrPrompt(const string& prompt);
 
-    pid_t getPid() const;
+    pid_t getPID() const;
 
     void printCommandsByOrder() const;
 
@@ -320,6 +325,18 @@ public:
     bool isAliasCommand(const string& command);
 
     void removeAliasCommand(const string& aliasCommand);
+
+    JobsList& getJobsList();
+
+    pid_t getForegroundPid() const;
+
+    std::string getForegroundCmd() const;
+
+    bool hasForegroundProcess() const;
+
+    void setForegroundProcess(pid_t pid, const std::string& cmd);
+
+    void clearForegroundProcess();
 
     // TODO: add extra methods as needed
 };
