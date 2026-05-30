@@ -659,7 +659,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     string firstWordBuiltInCmd;
 
     if (first_word.find("&") != string::npos) {
-        firstWordBuiltInCmd = first_word.substr(0, first_word.find("&") - 1);
+        firstWordBuiltInCmd = _trim(first_word.substr(0, first_word.find("&") - 1));
     }else {
         firstWordBuiltInCmd = first_word;
     }
@@ -826,15 +826,17 @@ void PipeCommand::execute() {
     pid_t pid1 = fork();
     if (pid1 < 0) {
         perror("smash error: fork failed");
-        close(pipe_fds[0]);
-        close(pipe_fds[1]);
+        if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+            perror("smash error: close failed");
+        }
         return;
     }
     if (pid1 == 0) {
         if (setpgrp() < 0) {
             perror("smash error: setpgrp failed");
-            close(pipe_fds[0]);
-            close(pipe_fds[1]);
+            if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+                perror("smash error: close failed");
+            }
             exit(1);
         }
         int dup_result = -1;
