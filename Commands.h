@@ -34,7 +34,6 @@ public:
     // TODO: Add your extra methods if needed
 };
 
-
 class BuiltInCommand : public Command {
 public:
     BuiltInCommand(const char *cmd_line);
@@ -47,8 +46,7 @@ class ExternalCommand : public Command { //ready
 public:
     ExternalCommand(const char *cmd_line);
 
-    virtual ~ExternalCommand() {
-    }
+    virtual ~ExternalCommand() {}
 
     void execute() override;
 };
@@ -81,8 +79,7 @@ class PipeCommand : public Command { //ready
 public:
     PipeCommand(const char *cmd_line);
 
-    virtual ~PipeCommand() {
-    }
+    virtual ~PipeCommand() {}
 
     void execute() override;
 };
@@ -92,8 +89,7 @@ class DiskUsageCommand : public Command { //ready
 public:
     DiskUsageCommand(const char *cmd_line);
 
-    virtual ~DiskUsageCommand() {
-    }
+    virtual ~DiskUsageCommand() {}
 
     void execute() override;
 };
@@ -102,8 +98,7 @@ class WhoAmICommand : public Command { //ready
 public:
     WhoAmICommand(const char *cmd_line);
 
-    virtual ~WhoAmICommand() {
-    }
+    virtual ~WhoAmICommand() {}
 
     void execute() override;
 };
@@ -113,8 +108,7 @@ class USBInfoCommand : public Command {
 public:
     USBInfoCommand(const char *cmd_line);
 
-    virtual ~USBInfoCommand() {
-    }
+    virtual ~USBInfoCommand() {}
 
     void execute() override;
 };
@@ -123,19 +117,16 @@ class ChpromptCommand : public BuiltInCommand { // ready (chprompt)
 public:
     ChpromptCommand(const char *cmd_line);
 
-    virtual ~ChpromptCommand() {
-    }
+    virtual ~ChpromptCommand() {}
 
     void execute() override;
 };
-
 
 class ShowPidCommand : public BuiltInCommand { //ready (pid)
 public:
     ShowPidCommand(const char *cmd_line);
 
-    virtual ~ShowPidCommand() {
-    }
+    virtual ~ShowPidCommand() {}
 
     void execute() override;
 };
@@ -144,12 +135,10 @@ class GetCurrDirCommand : public BuiltInCommand { //ready (pwd)
 public:
     GetCurrDirCommand(const char *cmd_line);
 
-    virtual ~GetCurrDirCommand() {
-    }
+    virtual ~GetCurrDirCommand() {}
 
     void execute() override;
 };
-
 
 class ChangeDirCommand : public BuiltInCommand { //ready (cd)
     // TODO: Add your data members public:
@@ -157,8 +146,7 @@ class ChangeDirCommand : public BuiltInCommand { //ready (cd)
 public:
     ChangeDirCommand(const char *cmd_line, char **plastPwd);
 
-    virtual ~ChangeDirCommand() {
-    }
+    virtual ~ChangeDirCommand() {}
 
     void execute() override;
 };
@@ -171,8 +159,7 @@ private:
 public:
     QuitCommand(const char *cmd_line, JobsList *jobs);
 
-    virtual ~QuitCommand() {
-    }
+    virtual ~QuitCommand() {}
 
     void execute() override;
 };
@@ -221,8 +208,7 @@ class JobsCommand : public BuiltInCommand {
 public:
     JobsCommand(const char *cmd_line, JobsList *jobs);
 
-    virtual ~JobsCommand() {
-    }
+    virtual ~JobsCommand() {}
 
     void execute() override;
 };
@@ -232,8 +218,7 @@ class KillCommand : public BuiltInCommand {
 public:
     KillCommand(const char *cmd_line, JobsList *jobs);
 
-    virtual ~KillCommand() {
-    }
+    virtual ~KillCommand() {}
 
     void execute() override;
 };
@@ -243,8 +228,7 @@ class ForegroundCommand : public BuiltInCommand {
 public:
     ForegroundCommand(const char *cmd_line, JobsList *jobs);
 
-    virtual ~ForegroundCommand() {
-    }
+    virtual ~ForegroundCommand() {}
 
     void execute() override;
 };
@@ -254,8 +238,7 @@ class AliasCommand : public BuiltInCommand { //ready
 public:
     AliasCommand(const char *cmd_line);
 
-    virtual ~AliasCommand() {
-    }
+    virtual ~AliasCommand() {}
 
     void execute() override;
 };
@@ -264,8 +247,7 @@ class UnAliasCommand : public BuiltInCommand { //ready
 public:
     UnAliasCommand(const char *cmd_line);
 
-    virtual ~UnAliasCommand() {
-    }
+    virtual ~UnAliasCommand() {}
 
     void execute() override;
 };
@@ -277,8 +259,7 @@ class UnSetEnvCommand : public BuiltInCommand { //ready
 public:
     UnSetEnvCommand(const char *cmd_line);
 
-    virtual ~UnSetEnvCommand() {
-    }
+    virtual ~UnSetEnvCommand() {}
 
     void execute() override;
 };
@@ -287,8 +268,7 @@ class SysInfoCommand : public BuiltInCommand { //ready
 public:
     SysInfoCommand(const char *cmd_line);
 
-    virtual ~SysInfoCommand() {
-    }
+    virtual ~SysInfoCommand() {}
 
     void execute() override;
 };
@@ -355,9 +335,6 @@ public:
     void setForegroundProcess(pid_t pid, const string& cmd);
 
     void clearForegroundProcess();
-
-
-
     // TODO: add extra methods as needed
 };
 

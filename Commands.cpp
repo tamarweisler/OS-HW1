@@ -1,4 +1,4 @@
-#define _GUN_SOURCE
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
@@ -14,7 +14,7 @@
 #include <ftw.h>
 #include <cstdlib>
 #include <signal.h>
-#include "limits.h"
+#include <limits.h>
 
 using namespace std;
 
