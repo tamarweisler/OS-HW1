@@ -301,13 +301,15 @@ void AliasCommand::execute() {
     try {
         if (!regex_match(cmdLineClean, vars, regex("^alias ([a-zA-Z0-9_]+)='([^']*)'$"))) {
             cerr << "smash error: alias: invalid alias format" << endl ;
+            return;
         }
     }catch (const regex_error& e) {
         cerr << "smash error: alias: invalid alias format" << endl ;
+        return;
     }
 
     if (SmallShell::getInstance().isSavedCommands(vars[1].str()) || SmallShell::getInstance().isAliasCommand(vars[1].str())) {
-        cerr << "smash error: alias: " << vars[1].str() << "already exists or is reserved command" << endl ;
+        cerr << "smash error: alias: " << vars[1].str() << " already exists or is reserved command" << endl ;
         return;
     }
 
@@ -468,7 +470,7 @@ void SysInfoCommand::execute() {
 
 int DiskUsageCommand::fileSize(const char *input, const struct stat *pStat, int flag, struct FTW *pFtw) {
     if (flag != FTW_SL && flag == FTW_F) {
-        DIR_SIZE += pStat->st_size;
+        DIR_SIZE += (pStat->st_blocks*512);
     }
     return 0;
 }
