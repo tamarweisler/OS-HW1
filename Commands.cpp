@@ -648,13 +648,15 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     }
 
     if (cmd_trimmed.find(">>") != string::npos) {
-        string input = _trim(cmd_trimmed.substr(0, cmd_trimmed.find(">>") - 1));
-        string output = _trim(cmd_trimmed.substr(cmd_trimmed.find(">>") + 2));
+        size_t redirection = cmd_trimmed.find(">>");
+        string input = _trim(cmd_trimmed.substr(0, redirection));
+        string output = _trim(cmd_trimmed.substr(redirection + 2));
         return new RedirectionAppendCommand(cmd_line, input, output);
     }
     if (cmd_trimmed.find(">") != string::npos) {
-        string input = _trim(cmd_trimmed.substr(0, cmd_trimmed.find(">") - 1));
-        string output = _trim(cmd_trimmed.substr(cmd_trimmed.find(">") + 1));
+        size_t redirection = cmd_trimmed.find(">");
+        string input = _trim(cmd_trimmed.substr(0, redirection));
+        string output = _trim(cmd_trimmed.substr(redirection + 1));
         return new RedirectionOverideCommand(cmd_line, input, output);
     }
 
