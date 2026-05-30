@@ -345,7 +345,7 @@ bool UnSetEnvCommand::isSetEnv(const string &command) {
     }
 
     char buffer[PATH_MAX];
-    string data;
+    string data = "";
     while (true) {
         ssize_t currBytesRead = read(fd, buffer, sizeof(buffer));
         if (currBytesRead == -1) {
@@ -534,18 +534,26 @@ void WhoAmICommand::execute() {
         return;
     }
 
+    string allReadedData = "";
     char buff[PATH_MAX];
-    ssize_t bytesRead = read(fd, buff, PATH_MAX);
-    if (bytesRead == -1) {
-        perror("smash error: read failed");
-        if (close(fd) == -1) {
-            perror("smash error: close failed");
+
+    while (true) {
+        ssize_t bytesRead = read(fd, buff, PATH_MAX);
+        if (bytesRead == -1) {
+            perror("smash error: read failed");
+            if (close(fd) == -1) {
+                perror("smash error: close failed");
+            }
+            return;
         }
-        return;
+        if (bytesRead == 0) {
+            break;
+        }
+
+        allReadedData.append(buff, bytesRead);
     }
 
-    string data(buff, bytesRead);
-    istringstream ss(data);
+    istringstream ss(allReadedData);
     string line;
 
     string username;
@@ -625,7 +633,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         if (first_space == string::npos) {
             return CreateCommand(aliasCommands[first_word].c_str());
         }
-        string newCmd = aliasCommands[first_word] + cmd_trimmed.substr(first_space, cmd_trimmed.size() - 1);
+        string newCmd = aliasCommands[first_word] + cmd_trimmed.substr(first_space);
         return CreateCommand(newCmd.c_str());
     }
 
@@ -636,12 +644,12 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
     if (cmd_trimmed.find(">>") != string::npos) {
         string input = _trim(cmd_trimmed.substr(0, cmd_trimmed.find(">>") - 1));
-        string output = _trim(cmd_trimmed.substr(cmd_trimmed.find(">>") + 2, cmd_trimmed.size() - 1));
+        string output = _trim(cmd_trimmed.substr(cmd_trimmed.find(">>") + 2));
         return new RedirectionAppendCommand(cmd_line, input, output);
     }
     if (cmd_trimmed.find(">") != string::npos) {
         string input = _trim(cmd_trimmed.substr(0, cmd_trimmed.find(">") - 1));
-        string output = _trim(cmd_trimmed.substr(cmd_trimmed.find(">") + 1, cmd_trimmed.size() - 1));
+        string output = _trim(cmd_trimmed.substr(cmd_trimmed.find(">") + 1));
         return new RedirectionOverideCommand(cmd_line, input, output);
     }
 
