@@ -499,7 +499,11 @@ void DiskUsageCommand::execute() {
         return;
     }
 
-    DIR_SIZE = (DIR_SIZE + 1023) / 1024;
+    if (DIR_SIZE % 1024 == 0) {
+        DIR_SIZE /= 1024;
+    }else {
+        DIR_SIZE = (DIR_SIZE / 1024) + 1;
+    }
     cout << "Total disk usage: " << DIR_SIZE << " KB" << endl;
 }
 
@@ -594,6 +598,15 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         first_word = cmd_trimmed.substr(0, first_space);
     }
 
+    if (_isBackgroundCommand(cmd_trimmed.c_str())) {
+        std::vector<char> cmd_buffer;
+        for (char c : cmd_trimmed)
+            cmd_buffer.push_back(c);
+        cmd_buffer.push_back('\0');
+        _removeBackgroundSign(cmd_buffer.data());
+        cmd_trimmed = _trim(string(cmd_buffer.data()));
+    }
+
     if (first_word == "alias") {
         return new AliasCommand(cmd_line);
     }
@@ -612,13 +625,13 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     }
 
     if (cmd_trimmed.find(">>") != string::npos) {
-        string input = cmd_trimmed.substr(0, cmd_trimmed.find(">>") - 1);
-        string output = cmd_trimmed.substr(cmd_trimmed.find(">>") + 1, cmd_trimmed.size() - 1);
+        string input = _trim(cmd_trimmed.substr(0, cmd_trimmed.find(">>") - 1));
+        string output = _trim(cmd_trimmed.substr(cmd_trimmed.find(">>") + 2, cmd_trimmed.size() - 1));
         return new RedirectionAppendCommand(cmd_line, input, output);
     }
     if (cmd_trimmed.find(">") != string::npos) {
-        string input = cmd_trimmed.substr(0, cmd_trimmed.find(">") - 1);
-        string output = cmd_trimmed.substr(cmd_trimmed.find(">") + 1, cmd_trimmed.size() - 1);
+        string input = _trim(cmd_trimmed.substr(0, cmd_trimmed.find(">") - 1));
+        string output = _trim(cmd_trimmed.substr(cmd_trimmed.find(">") + 1, cmd_trimmed.size() - 1));
         return new RedirectionOverideCommand(cmd_line, input, output);
     }
 
@@ -672,15 +685,6 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
     if (firstWordBuiltInCmd == "sysinfo") {
         return new SysInfoCommand(cmd_line);
-    }
-
-    if (_isBackgroundCommand(cmd_trimmed.c_str())) {
-        std::vector<char> cmd_buffer;
-        for (char c : cmd_trimmed)
-            cmd_buffer.push_back(c);
-        cmd_buffer.push_back('\0');
-        _removeBackgroundSign(cmd_buffer.data());
-        cmd_trimmed = _trim(std::string(cmd_buffer.data()));
     }
 
     if (first_word == "du") {
@@ -740,7 +744,6 @@ void SmallShell::addAliasCommand(const string& aliasCommand, const string& sComm
         this->commandsByOrder.push_back(aliasCommand);
     }
 }
-
 
 bool SmallShell::isSavedCommands(const string& command) const {
     for(int i = 0; i < 7; i++){
