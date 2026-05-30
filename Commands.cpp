@@ -141,12 +141,12 @@ void ExternalCommand::execute() {
     int count_args = 0;
     string cmd_to_exe = cmd_line;
     if (background_flag) {
-        std::vector<char> cmd_buffer;
+        vector<char> cmd_buffer;
         for (char c:cmd_to_exe)
             cmd_buffer.push_back(c);
         cmd_buffer.push_back('\0');
         _removeBackgroundSign(cmd_buffer.data());
-        cmd_to_exe = _trim(std::string(cmd_buffer.data()));
+        cmd_to_exe = _trim(string(cmd_buffer.data()));
     }
     for (char c: cmd_to_exe)
         if (c == '?' || c == '*')
