@@ -344,23 +344,31 @@ bool UnSetEnvCommand::isSetEnv(const string &command) {
         return false;
     }
 
-    char buffer[4096];
-    ssize_t bytesRead = read(fd, buffer, sizeof(buffer));
-    if (bytesRead == -1) {
-        perror("smash error: read failed");
-        if (close(fd) == -1) {
-            perror("smash error: close failed");
+    char buffer[PATH_MAX];
+    string data;
+    while (true) {
+        ssize_t currBytesRead = read(fd, buffer, sizeof(buffer));
+        if (currBytesRead == -1) {
+            perror("smash error: read failed");
+            if (close(fd) == -1) {
+                perror("smash error: close failed");
+            }
+            return false;
         }
-        return false;
+
+        if (currBytesRead == 0) {
+            break;
+        }
+        data.append(buffer, currBytesRead);
     }
 
     string cmdToFind = command + "=";
     int i = 0;
-    while (i < bytesRead) {
+    while (i < data.size()) {
         string setEnv;
 
-        while (buffer[i] != '\0') {
-            setEnv += buffer[i];
+        while (i < data.size() && data[i] != '\0') {
+            setEnv += data[i];
             i++;
         }
 
@@ -469,7 +477,7 @@ void SysInfoCommand::execute() {
 
 
 int DiskUsageCommand::fileSize(const char *input, const struct stat *pStat, int flag, struct FTW *pFtw) {
-    if (flag != FTW_SL && flag == FTW_F) {
+    if (flag != FTW_SL && (flag == FTW_F || flag == FTW_D)) {
         DIR_SIZE += (pStat->st_blocks*512);
     }
     return 0;
@@ -646,19 +654,19 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     }
 
     if (firstWordBuiltInCmd == "chprompt") {
-        return new ChpromptCommand(cmd_line);
+        return new ChpromptCommand(cmd_trimmed.c_str());
     }
 
     if (firstWordBuiltInCmd == "showpid") {
-        return new ShowPidCommand(cmd_line);
+        return new ShowPidCommand(cmd_trimmed.c_str());
     }
 
     if (firstWordBuiltInCmd == "pwd") {
-        return new GetCurrDirCommand(cmd_line);
+        return new GetCurrDirCommand(cmd_trimmed.c_str());
     }
 
     if (firstWordBuiltInCmd == "cd") {
-        return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
+        return new ChangeDirCommand(cmd_trimmed.c_str(), &this->prevWorkDir);
     }
 
     if (firstWordBuiltInCmd == "jobs") {
@@ -678,15 +686,15 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     }
 
     if (firstWordBuiltInCmd == "unalias") {
-        return new UnAliasCommand(cmd_line);
+        return new UnAliasCommand(cmd_trimmed.c_str());
     }
 
     if (firstWordBuiltInCmd == "unsetenv") {
-        return new UnSetEnvCommand(cmd_line);
+        return new UnSetEnvCommand(cmd_trimmed.c_str());
     }
 
     if (firstWordBuiltInCmd == "sysinfo") {
-        return new SysInfoCommand(cmd_line);
+        return new SysInfoCommand(cmd_trimmed.c_str());
     }
 
     if (first_word == "du") {
@@ -748,7 +756,7 @@ void SmallShell::addAliasCommand(const string& aliasCommand, const string& sComm
 }
 
 bool SmallShell::isSavedCommands(const string& command) const {
-    for(int i = 0; i < 7; i++){
+    for(int i = 0; i < 15; i++){
         if(command == this->savedCommands[i]) { //the alias name conflicts with reserved keyword
             return true;
         }

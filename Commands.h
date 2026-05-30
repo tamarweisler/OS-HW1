@@ -304,7 +304,8 @@ private:
     pid_t foreground_pid;
     std::string foreground_cmd;
 
-    string savedCommands[8] = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg", "quit", "kill"}; //an array of the forbidden words to use in alias command
+    string savedCommands[15] = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg", "quit", "kill", "alias", "unalias",
+                                            "unsetenv", "sysinfo", "du", "whoami", "usbinfo"}; //an array of the forbidden words to use in alias command
     vector<string> commandsByOrder;
     map<string, string> aliasCommands;
 
