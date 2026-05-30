@@ -134,14 +134,12 @@ RedirectionOverideCommand::RedirectionOverideCommand(const char *cmd_line, const
 RedirectionAppendCommand::RedirectionAppendCommand(const char *cmd_line, const string &inputFile, const string &outputFile)
                                                     : RedirectionCommand(cmd_line, inputFile, outputFile, O_WRONLY | O_CREAT | O_APPEND) {}
 
-
-
 void ExternalCommand::execute() {
     bool background_flag = _isBackgroundCommand(cmd_line.c_str());
     char* args[COMMAND_MAX_ARGS + 1];
     bool complex_flag = false, free_flag = false, exit_flag = false;
     int count_args = 0;
-    std::string cmd_to_exe = cmd_line;
+    string cmd_to_exe = cmd_line;
     if (background_flag) {
         std::vector<char> cmd_buffer;
         for (char c:cmd_to_exe)
@@ -229,14 +227,12 @@ void ChpromptCommand::execute() {
     }
 }
 
-
 void ShowPidCommand::execute() {
     pid_t pid = SmallShell::getInstance().getPID();
     if (pid != -1) {
         std::cout << "smash pid is " << pid << std::endl ;
     }
 }
-
 
 void GetCurrDirCommand::execute() {
     char buff[PATH_MAX];
@@ -245,7 +241,6 @@ void GetCurrDirCommand::execute() {
         std::cout << buff << std::endl ;
     }
 }
-
 
 void ChangeDirCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
@@ -285,7 +280,6 @@ void ChangeDirCommand::execute() {
     perror("smash error: chdir failed");
 }
 
-
 void AliasCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
     int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
@@ -315,7 +309,6 @@ void AliasCommand::execute() {
 
     SmallShell::getInstance().addAliasCommand(vars[1].str(), vars[2].str());
 }
-
 
 void UnAliasCommand::execute() {
     char* args[COMMAND_MAX_ARGS];
@@ -420,7 +413,6 @@ void UnSetEnvCommand::execute() {
     }
 }
 
-
 void SysInfoCommand::execute() {
     utsname sys;
     if (uname(&sys) == -1) {
@@ -434,31 +426,42 @@ void SysInfoCommand::execute() {
     string architecture = sys.machine;
 
 
-    int fd = open("/proc/uptime", O_RDONLY);
+    int fd = open("/proc/stat", O_RDONLY);
     if (fd == -1) {
         perror("smash error: open failed");
         return;
     }
 
     char buff[PATH_MAX];
-    ssize_t bytesRead = read(fd, buff, PATH_MAX);
-    if (bytesRead == -1) {
-        perror("smash error: read failed");
-        if (close(fd) == -1) {
-            perror("smash error: close failed");
+    string data = "";
+    while (true) {
+        ssize_t bytesRead = read(fd, buff, PATH_MAX);
+        if (bytesRead == -1) {
+            perror("smash error: read failed");
+            if (close(fd) == -1) {
+                perror("smash error: close failed");
+            }
+            return;
         }
-        return;
+
+        if (bytesRead == 0) {
+            break;
+        }
+        data.append(buff, bytesRead);
     }
 
-    string data(buff, bytesRead);
-    int counter = 0;
-    string upTime = "";
-    while (counter < data.size() && data[counter] != ' ') {
-        upTime += data[counter];
-        counter++;
-    }
+    time_t bootTime;
+    for (int i = 0; i < data.size() - 5; i++) {
+        if (data.substr(i, 5) == "btime") {
+            bootTime = stoi(_trim(data.substr(i+5, data.find("\n", i) - (i+5))));
+            break;
+        }
+        i = data.find("\n", i);
 
-    time_t bootTime = time(nullptr) - stod(upTime);
+        if (i == string::npos) {
+            break;
+        }
+    }
     tm* timeToPrint = localtime(&bootTime);
     char buffer[80];
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeToPrint);
@@ -717,7 +720,6 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 }
 
 
-
 void SmallShell::executeCommand(const char *cmd_line) {
     // TODO: Add your implementation here
     // for example:
@@ -732,8 +734,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
         cmd->execute();
         delete cmd;
     }
-
-
     // Please note that you must fork a smash process for some commands (e.g., external commands....)
 }
 
@@ -772,14 +772,12 @@ bool SmallShell::isSavedCommands(const string& command) const {
     return false;
 }
 
-
 bool SmallShell::isAliasCommand(const string& command) {
     if (this->aliasCommands.find(command) != aliasCommands.end()) { //the alias name conflicts with existing alias
         return true;
     }
     return false;
 }
-
 
 void SmallShell::removeAliasCommand(const string& aliasCommand) {
     this->aliasCommands.erase(aliasCommand);
@@ -792,8 +790,6 @@ void SmallShell::removeAliasCommand(const string& aliasCommand) {
         }
     }
 }
-
-
 
 PipeCommand::PipeCommand(const char* cmd_line): Command(cmd_line) {}
 
