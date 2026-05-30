@@ -629,7 +629,6 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         first_word = cmd_trimmed.substr(0, first_space);
     }
 
-
     if (first_word == "alias") {
         return new AliasCommand(cmd_line);
     }
@@ -1073,10 +1072,10 @@ ForegroundCommand::ForegroundCommand(const char *cmd_line, JobsList *jobs): Buil
 void ForegroundCommand::execute() {
     if (jobs == nullptr)
         return;
-    std::stringstream stream(cmd_line);
-    std::string cmd_name;
-    std::string arg1;
-    std::string arg2;
+    stringstream stream(cmd_line);
+    string cmd_name;
+    string arg1;
+    string arg2;
     stream >> cmd_name;
     stream >> arg1;
     stream >> arg2;
@@ -1099,7 +1098,7 @@ void ForegroundCommand::execute() {
                 return;
             }
         }
-        job_id = std::stoi(arg1);
+        job_id = stoi(arg1);
         job = jobs->getJobById(job_id);
         if (job == nullptr) {
             cerr << "smash error: fg: job-id " << job_id << " does not exist" << endl;
@@ -1107,11 +1106,20 @@ void ForegroundCommand::execute() {
         }
     }
     pid_t job_pid = job->pid;
-    std::string job_cmd = job->cmd_line;
+    string job_cmd = job->cmd_line;
+    bool jobWasStopped = job->stopped;
     cout << job_cmd << " " << job_pid << endl;
     jobs->removeJobById(job_id);
     SmallShell& smash = SmallShell::getInstance();
     smash.setForegroundProcess(job_pid, job_cmd);
+    if (jobWasStopped) {
+        int killResult = kill(job_pid, SIGKILL);
+        if (killResult < 0) {
+            perror("smash error: kill failed");
+            smash.clearForegroundProcess();
+            return;
+        }
+    }
     int status = 0;
     while (true) {
         pid_t wait_result = waitpid(job_pid, &status, 0);
