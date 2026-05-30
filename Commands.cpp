@@ -609,6 +609,16 @@ SmallShell::~SmallShell() {
 */
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_trimmed = _trim(string(cmd_line));
+
+    if (_isBackgroundCommand(cmd_trimmed.c_str())) {
+        std::vector<char> cmd_buffer;
+        for (char c : cmd_trimmed)
+            cmd_buffer.push_back(c);
+        cmd_buffer.push_back('\0');
+        _removeBackgroundSign(cmd_buffer.data());
+        cmd_trimmed = _trim(string(cmd_buffer.data()));
+    }
+
     size_t first_space = cmd_trimmed.find_first_of(WHITESPACE);
     string first_word;
 
@@ -619,14 +629,6 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         first_word = cmd_trimmed.substr(0, first_space);
     }
 
-    if (_isBackgroundCommand(cmd_trimmed.c_str())) {
-        std::vector<char> cmd_buffer;
-        for (char c : cmd_trimmed)
-            cmd_buffer.push_back(c);
-        cmd_buffer.push_back('\0');
-        _removeBackgroundSign(cmd_buffer.data());
-        cmd_trimmed = _trim(string(cmd_buffer.data()));
-    }
 
     if (first_word == "alias") {
         return new AliasCommand(cmd_line);
@@ -656,55 +658,47 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new RedirectionOverideCommand(cmd_line, input, output);
     }
 
-    string firstWordBuiltInCmd;
-
-    if (first_word.find("&") != string::npos) {
-        firstWordBuiltInCmd = _trim(first_word.substr(0, first_word.find("&") - 1));
-    }else {
-        firstWordBuiltInCmd = first_word;
-    }
-
-    if (firstWordBuiltInCmd == "chprompt") {
+    if (first_word == "chprompt") {
         return new ChpromptCommand(cmd_trimmed.c_str());
     }
 
-    if (firstWordBuiltInCmd == "showpid") {
+    if (first_word == "showpid") {
         return new ShowPidCommand(cmd_trimmed.c_str());
     }
 
-    if (firstWordBuiltInCmd == "pwd") {
+    if (first_word == "pwd") {
         return new GetCurrDirCommand(cmd_trimmed.c_str());
     }
 
-    if (firstWordBuiltInCmd == "cd") {
+    if (first_word == "cd") {
         return new ChangeDirCommand(cmd_trimmed.c_str(), &this->prevWorkDir);
     }
 
-    if (firstWordBuiltInCmd == "jobs") {
+    if (first_word == "jobs") {
         return new JobsCommand(cmd_trimmed.c_str(), &jobs);
     }
 
-    if (firstWordBuiltInCmd == "fg") {
+    if (first_word == "fg") {
         return new ForegroundCommand(cmd_trimmed.c_str(), &jobs);
     }
 
-    if (firstWordBuiltInCmd == "kill") {
+    if (first_word == "kill") {
         return new KillCommand(cmd_trimmed.c_str(), &jobs);
     }
 
-    if (firstWordBuiltInCmd == "quit") {
+    if (first_word == "quit") {
         return new QuitCommand(cmd_trimmed.c_str(), &jobs);
     }
 
-    if (firstWordBuiltInCmd == "unalias") {
+    if (first_word == "unalias") {
         return new UnAliasCommand(cmd_trimmed.c_str());
     }
 
-    if (firstWordBuiltInCmd == "unsetenv") {
+    if (first_word == "unsetenv") {
         return new UnSetEnvCommand(cmd_trimmed.c_str());
     }
 
-    if (firstWordBuiltInCmd == "sysinfo") {
+    if (first_word == "sysinfo") {
         return new SysInfoCommand(cmd_trimmed.c_str());
     }
 
@@ -781,10 +775,9 @@ bool SmallShell::isAliasCommand(const string& command) {
 
 void SmallShell::removeAliasCommand(const string& aliasCommand) {
     this->aliasCommands.erase(aliasCommand);
-    string toDelete = aliasCommand + "=";
 
     for (auto it = this->commandsByOrder.begin(); it != this->commandsByOrder.end(); it++) {
-        if (it->find(toDelete) == 0) {
+        if (it->find(aliasCommand) == 0) {
             this->commandsByOrder.erase(it);
             return;
         }
