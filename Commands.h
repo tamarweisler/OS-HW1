@@ -18,11 +18,17 @@ protected:
     pid_t pid;
 public:
     Command(const char *cmd_line);
+
     virtual ~Command();
+
     virtual void execute() = 0;
+
     std::string getCmdLine() const;
+
     void setPid(pid_t pid);
+
     pid_t getPid() const;
+
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
@@ -37,7 +43,7 @@ public:
     }
 };
 
-class ExternalCommand : public Command {
+class ExternalCommand : public Command { //ready
 public:
     ExternalCommand(const char *cmd_line);
 
@@ -47,11 +53,14 @@ public:
     void execute() override;
 };
 
+/////////////////////////////////////////////////////////////////////////////////
 
 class RedirectionCommand : public Command {
-    // TODO: Add your data members
+    string input;
+    string outputFile;
+    int flags;
 public:
-    explicit RedirectionCommand(const char *cmd_line);
+    explicit RedirectionCommand(const char *cmd_line, const string& input, const string& outputFile, const int& flags);
 
     virtual ~RedirectionCommand() {
     }
@@ -59,7 +68,25 @@ public:
     void execute() override;
 };
 
-class PipeCommand : public Command {
+class RedirectionOverideCommand : public RedirectionCommand {
+public:
+    explicit RedirectionOverideCommand(const char *cmd_line, const string& inputFile, const string& outputFile);
+
+    virtual ~RedirectionOverideCommand() {
+    }
+};
+
+class RedirectionAppendCommand : public RedirectionCommand {
+public:
+    explicit RedirectionAppendCommand(const char *cmd_line, const string& inputFile, const string& outputFile);
+
+    virtual ~RedirectionAppendCommand() {
+    }
+};
+
+/////////////////////////////////////////////////////////////////////////////////
+
+class PipeCommand : public Command { //ready
     // TODO: Add your data members
 public:
     PipeCommand(const char *cmd_line);
@@ -148,7 +175,7 @@ public:
 
 class JobsList;
 
-class QuitCommand : public BuiltInCommand {
+class QuitCommand : public BuiltInCommand { //ready
 private:
     JobsList* jobs;
 public:
@@ -292,7 +319,7 @@ private:
     map<string, string> aliasCommands;
 
     SmallShell();
-    string sliceInput(const string &input);
+
 
 public:
     Command *CreateCommand(const char *cmd_line);
@@ -320,7 +347,7 @@ public:
 
     void addAliasCommand(const string& aliasCommand ,const string& command);
 
-    bool isSavedCommands(const string& command);
+    bool isSavedCommands(const string& command) const;
 
     bool isAliasCommand(const string& command);
 

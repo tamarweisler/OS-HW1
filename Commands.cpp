@@ -126,6 +126,15 @@ DiskUsageCommand::DiskUsageCommand(const char *cmd_line) : Command(cmd_line) {}
 
 WhoAmICommand::WhoAmICommand(const char *cmd_line) : Command(cmd_line) {}
 
+RedirectionCommand::RedirectionCommand(const char *cmd_line, const string &IF, const string& OF, const int& flags) : Command(cmd_line), input(IF), outputFile(OF), flags(flags) {}
+
+RedirectionOverideCommand::RedirectionOverideCommand(const char *cmd_line, const string &inputFile, const string &outputFile)
+                                                    : RedirectionCommand(cmd_line, inputFile, outputFile, O_WRONLY | O_CREAT | O_TRUNC) {}
+
+RedirectionAppendCommand::RedirectionAppendCommand(const char *cmd_line, const string &inputFile, const string &outputFile)
+                                                    : RedirectionCommand(cmd_line, inputFile, outputFile, O_WRONLY | O_CREAT | O_APPEND) {}
+
+
 
 void ExternalCommand::execute() {
     bool background_flag = _isBackgroundCommand(cmd_line.c_str());
@@ -337,7 +346,9 @@ bool UnSetEnvCommand::isSetEnv(const string &command) {
     ssize_t bytesRead = read(fd, buffer, sizeof(buffer));
     if (bytesRead == -1) {
         perror("smash error: read failed");
-        close(fd);
+        if (close(fd) == -1) {
+            perror("smash error: close failed");
+        }
         return false;
     }
 
@@ -352,12 +363,16 @@ bool UnSetEnvCommand::isSetEnv(const string &command) {
         }
 
         if (setEnv.find(cmdToFind) == 0) {
-            close(fd);
+            if (close(fd) == -1) {
+                perror("smash error: close failed");
+            }
             return true;
         }
         i++;
     }
-    close(fd);
+    if (close(fd) == -1) {
+        perror("smash error: close failed");
+    }
     return false;
 }
 
@@ -419,7 +434,9 @@ void SysInfoCommand::execute() {
     ssize_t bytesRead = read(fd, buff, PATH_MAX);
     if (bytesRead == -1) {
         perror("smash error: read failed");
-        close(fd);
+        if (close(fd) == -1) {
+            perror("smash error: close failed");
+        }
         return;
     }
 
@@ -435,7 +452,12 @@ void SysInfoCommand::execute() {
     tm* timeToPrint = localtime(&bootTime);
     char buffer[80];
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeToPrint);
-    close(fd);
+
+    if (close(fd) == -1) {
+        perror("smash error: close failed");
+        return;
+    }
+
     cout << "System: " << OSName << endl;
     cout << "Hostname: " << hostname << endl;
     cout << "Kernel: " << kernelReleaseAndVersion << endl;
@@ -445,7 +467,7 @@ void SysInfoCommand::execute() {
 
 
 int DiskUsageCommand::fileSize(const char *input, const struct stat *pStat, int flag, struct FTW *pFtw) {
-    if (flag != FTW_SL) {
+    if (flag != FTW_SL && flag == FTW_F) {
         DIR_SIZE += pStat->st_size;
     }
     return 0;
@@ -502,7 +524,9 @@ void WhoAmICommand::execute() {
     ssize_t bytesRead = read(fd, buff, PATH_MAX);
     if (bytesRead == -1) {
         perror("smash error: read failed");
-        close(fd);
+        if (close(fd) == -1) {
+            perror("smash error: close failed");
+        }
         return;
     }
 
@@ -533,7 +557,11 @@ void WhoAmICommand::execute() {
         }
     }
 
-    close(fd);
+    if (close(fd) == -1) {
+        perror("smash error: close failed");
+        return;
+    }
+
     cout << username << endl;
     cout << uid << endl;
     cout << gid << endl;
@@ -571,11 +599,22 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
     }
 
     if (this->aliasCommands.find(first_word) != this->aliasCommands.end()) {
-        if (first_space == std::string::npos) {
+        if (first_space == string::npos) {
             return CreateCommand(aliasCommands[first_word].c_str());
         }
         string newCmd = aliasCommands[first_word] + cmd_trimmed.substr(first_space, cmd_trimmed.size() - 1);
         return CreateCommand(newCmd.c_str());
+    }
+
+    if (cmd_trimmed.find(">>") != string::npos) {
+        string input = cmd_trimmed.substr(0, cmd_trimmed.find(">>") - 1);
+        string output = cmd_trimmed.substr(cmd_trimmed.find(">>") + 1, cmd_trimmed.size() - 1);
+        return new RedirectionAppendCommand(cmd_line, input, output);
+    }
+    if (cmd_trimmed.find(">") != string::npos) {
+        string input = cmd_trimmed.substr(0, cmd_trimmed.find(">") - 1);
+        string output = cmd_trimmed.substr(cmd_trimmed.find(">") + 1, cmd_trimmed.size() - 1);
+        return new RedirectionOverideCommand(cmd_line, input, output);
     }
 
     for (char c: cmd_trimmed) {
@@ -680,30 +719,11 @@ pid_t SmallShell::getPID() const {
     return this->pid;
 }
 
-string SmallShell::sliceInput(const string& input) {
-    string command;
-    int i = 0;
-
-    if (input.empty()) {
-        return "";
-    }
-
-    while (i < input.size()) {
-        if (input[i] == ' ' || input[i] == '&' || input[i] == '|' || input[i] == '<') {
-            break;
-        }
-        command += input[i];
-        i++;
-    }
-    return command;
-}
-
 void SmallShell::printCommandsByOrder() const {
     for (string aliasC : commandsByOrder) {
         cout << aliasC << "='" << aliasCommands.find(aliasC)->second << "'" << endl;
     }
 }
-
 
 void SmallShell::addAliasCommand(const string& aliasCommand, const string& sCommand) {
     if (!this->aliasCommands.insert({aliasCommand, sCommand}).second) {
@@ -714,7 +734,7 @@ void SmallShell::addAliasCommand(const string& aliasCommand, const string& sComm
 }
 
 
-bool SmallShell::isSavedCommands(const string& command) {
+bool SmallShell::isSavedCommands(const string& command) const {
     for(int i = 0; i < 7; i++){
         if(command == this->savedCommands[i]) { //the alias name conflicts with reserved keyword
             return true;
@@ -1156,12 +1176,37 @@ void KillCommand::execute() {
 QuitCommand::QuitCommand(const char *cmd_line, JobsList *jobs): BuiltInCommand(cmd_line), jobs(jobs) {}
 
 void QuitCommand::execute() {
-    std::stringstream stream(cmd_line);
-    std::string cmd_name;
-    std::string arg1;
+    stringstream stream(cmd_line);
+    string cmd_name;
+    string arg1;
     stream >> cmd_name;
     stream >> arg1;
     if (arg1 == "kill" && jobs != nullptr)
             jobs->killAllJobs();
     exit(0);
+}
+
+void RedirectionCommand::execute() {
+    int fd = open(this->outputFile.c_str(), this->flags, 0666);
+    if (fd == -1) {
+        perror("smash error: open failed");
+        return;
+    }
+
+    int OriginOutput = dup(1);
+
+    int result = dup2(fd, 1);
+    if (result == -1) {
+        perror("smash error: dup2 failed");
+        return;
+    }
+
+    SmallShell::getInstance().executeCommand(this->input.c_str());
+    if (close(fd) == -1) {
+        perror("smash error: close failed");
+        return;
+    }
+
+    dup2(OriginOutput, 1);
+    close(OriginOutput);
 }
