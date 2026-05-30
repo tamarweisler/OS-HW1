@@ -53,38 +53,28 @@ public:
     void execute() override;
 };
 
-/////////////////////////////////////////////////////////////////////////////////
-
-class RedirectionCommand : public Command {
+class RedirectionCommand : public Command { //ready
     string input;
     string outputFile;
     int flags;
 public:
     explicit RedirectionCommand(const char *cmd_line, const string& input, const string& outputFile, const int& flags);
 
-    virtual ~RedirectionCommand() {
-    }
+    virtual ~RedirectionCommand() {}
 
     void execute() override;
 };
 
-class RedirectionOverideCommand : public RedirectionCommand {
+class RedirectionOverideCommand : public RedirectionCommand { //ready
 public:
     explicit RedirectionOverideCommand(const char *cmd_line, const string& inputFile, const string& outputFile);
-
-    virtual ~RedirectionOverideCommand() {
-    }
 };
 
-class RedirectionAppendCommand : public RedirectionCommand {
+class RedirectionAppendCommand : public RedirectionCommand { //ready
 public:
     explicit RedirectionAppendCommand(const char *cmd_line, const string& inputFile, const string& outputFile);
-
-    virtual ~RedirectionAppendCommand() {
-    }
 };
 
-/////////////////////////////////////////////////////////////////////////////////
 
 class PipeCommand : public Command { //ready
     // TODO: Add your data members
@@ -314,7 +304,7 @@ private:
     pid_t foreground_pid;
     std::string foreground_cmd;
 
-    string savedCommands[8] = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg", "quit", "Kill"}; //an array of the forbidden words to use in alias command
+    string savedCommands[8] = {"chprompt", "showpid", "pwd", "cd", "jobs", "fg", "quit", "kill"}; //an array of the forbidden words to use in alias command
     vector<string> commandsByOrder;
     map<string, string> aliasCommands;
 
@@ -357,13 +347,15 @@ public:
 
     pid_t getForegroundPid() const;
 
-    std::string getForegroundCmd() const;
+    string getForegroundCmd() const;
 
     bool hasForegroundProcess() const;
 
-    void setForegroundProcess(pid_t pid, const std::string& cmd);
+    void setForegroundProcess(pid_t pid, const string& cmd);
 
     void clearForegroundProcess();
+
+
 
     // TODO: add extra methods as needed
 };

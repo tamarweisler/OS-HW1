@@ -585,9 +585,9 @@ SmallShell::~SmallShell() {
 Command *SmallShell::CreateCommand(const char *cmd_line) {
     string cmd_trimmed = _trim(string(cmd_line));
     size_t first_space = cmd_trimmed.find_first_of(WHITESPACE);
-    std::string first_word;
+    string first_word;
 
-    if (first_space == std::string::npos) {
+    if (first_space == string::npos) {
         first_word = cmd_trimmed;
     }
     else {
@@ -606,6 +606,11 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return CreateCommand(newCmd.c_str());
     }
 
+    for (char c: cmd_trimmed) {
+        if (c == '|')
+            return new PipeCommand(cmd_line);
+    }
+
     if (cmd_trimmed.find(">>") != string::npos) {
         string input = cmd_trimmed.substr(0, cmd_trimmed.find(">>") - 1);
         string output = cmd_trimmed.substr(cmd_trimmed.find(">>") + 1, cmd_trimmed.size() - 1);
@@ -617,10 +622,58 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new RedirectionOverideCommand(cmd_line, input, output);
     }
 
-    for (char c: cmd_trimmed) {
-        if (c == '|')
-            return new PipeCommand(cmd_line);
+    string firstWordBuiltInCmd;
+
+    if (first_word.find("&") != string::npos) {
+        firstWordBuiltInCmd = first_word.substr(0, first_word.find("&") - 1);
+    }else {
+        firstWordBuiltInCmd = first_word;
     }
+
+    if (firstWordBuiltInCmd == "chprompt") {
+        return new ChpromptCommand(cmd_line);
+    }
+
+    if (firstWordBuiltInCmd == "showpid") {
+        return new ShowPidCommand(cmd_line);
+    }
+
+    if (firstWordBuiltInCmd == "pwd") {
+        return new GetCurrDirCommand(cmd_line);
+    }
+
+    if (firstWordBuiltInCmd == "cd") {
+        return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
+    }
+
+    if (firstWordBuiltInCmd == "jobs") {
+        return new JobsCommand(cmd_trimmed.c_str(), &jobs);
+    }
+
+    if (firstWordBuiltInCmd == "fg") {
+        return new ForegroundCommand(cmd_trimmed.c_str(), &jobs);
+    }
+
+    if (firstWordBuiltInCmd == "kill") {
+        return new KillCommand(cmd_trimmed.c_str(), &jobs);
+    }
+
+    if (firstWordBuiltInCmd == "quit") {
+        return new QuitCommand(cmd_trimmed.c_str(), &jobs);
+    }
+
+    if (firstWordBuiltInCmd == "unalias") {
+        return new UnAliasCommand(cmd_line);
+    }
+
+    if (firstWordBuiltInCmd == "unsetenv") {
+        return new UnSetEnvCommand(cmd_line);
+    }
+
+    if (firstWordBuiltInCmd == "sysinfo") {
+        return new SysInfoCommand(cmd_line);
+    }
+
     if (_isBackgroundCommand(cmd_trimmed.c_str())) {
         std::vector<char> cmd_buffer;
         for (char c : cmd_trimmed)
@@ -628,51 +681,6 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         cmd_buffer.push_back('\0');
         _removeBackgroundSign(cmd_buffer.data());
         cmd_trimmed = _trim(std::string(cmd_buffer.data()));
-    }
-
-
-    if (first_word == "jobs") {
-        return new JobsCommand(cmd_trimmed.c_str(), &jobs);
-    }
-
-    if (first_word == "fg") {
-        return new ForegroundCommand(cmd_trimmed.c_str(), &jobs);
-    }
-
-    if (first_word == "kill") {
-        return new KillCommand(cmd_trimmed.c_str(), &jobs);
-    }
-
-    if (first_word == "quit") {
-        return new QuitCommand(cmd_trimmed.c_str(), &jobs);
-    }
-
-    if (first_word == "chprompt") {
-        return new ChpromptCommand(cmd_line);
-    }
-
-    if (first_word == "showpid") {
-        return new ShowPidCommand(cmd_line);
-    }
-
-    if (first_word == "pwd") {
-        return new GetCurrDirCommand(cmd_line);
-    }
-
-    if (first_word == "cd") {
-        return new ChangeDirCommand(cmd_line, &this->prevWorkDir);
-    }
-
-    if (first_word == "unalias") {
-        return new UnAliasCommand(cmd_line);
-    }
-
-    if (first_word == "unsetenv") {
-        return new UnSetEnvCommand(cmd_line);
-    }
-
-    if (first_word == "sysinfo") {
-        return new SysInfoCommand(cmd_line);
     }
 
     if (first_word == "du") {
