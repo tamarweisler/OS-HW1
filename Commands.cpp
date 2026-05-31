@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <signal.h>
 #include <limits.h>
+#include <sys/syscall.h>
 
 using namespace std;
 
@@ -133,6 +134,8 @@ RedirectionOverideCommand::RedirectionOverideCommand(const char *cmd_line, const
 
 RedirectionAppendCommand::RedirectionAppendCommand(const char *cmd_line, const string &inputFile, const string &outputFile)
                                                     : RedirectionCommand(cmd_line, inputFile, outputFile, O_WRONLY | O_CREAT | O_APPEND) {}
+
+USBInfoCommand::USBInfoCommand(const char *cmd_line) : Command(cmd_line) {}
 
 void ExternalCommand::execute() {
     bool background_flag = _isBackgroundCommand(cmd_line.c_str());
@@ -711,6 +714,10 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
         return new WhoAmICommand(cmd_line);
     }
 
+    if (first_word == "usbinfo") {
+        return new USBInfoCommand(cmd_line);
+    }
+
     return new ExternalCommand(cmd_line);
 }
 
@@ -1240,3 +1247,157 @@ void RedirectionCommand::execute() {
     dup2(OriginOutput, 1);
     close(OriginOutput);
 }
+
+struct linux_dirent {
+    unsigned long d_ino;
+    off_t d_off;
+    unsigned short d_reclen;
+    char d_name[];
+};
+
+
+string USBInfoCommand::dataInFile(const string &path) {
+    string temp;
+    char buffer[PATH_MAX];
+    int fd = open(path.c_str(), O_RDONLY);
+    if (fd == -1) {
+        return "N/A";
+    }
+
+    ssize_t fileBytes = read(fd, buffer, PATH_MAX - 1);
+    if (fileBytes <= 0) {
+        temp = "N/A";
+    }else {
+        if (buffer[fileBytes - 1] == '\n') {
+            buffer[fileBytes - 1] = '\0';
+        } else {
+            buffer[fileBytes] = '\0';
+        }
+        temp = buffer;
+    }
+
+    if (close(fd) == -1) {
+        perror("smash error: close failed");
+        return "";
+    }
+
+    return temp;
+}
+
+
+void USBInfoCommand::execute() {
+    int fd = open("/sys/bus/usb/devices", O_RDONLY | O_DIRECTORY);
+    if (fd == -1) {
+        perror("smash error: open failed");
+        return;
+    }
+
+    char buff[PATH_MAX];
+    bool noUsb = true;
+    map<int, string> usbDevices;
+
+    while (true) {
+        long bytesRead = syscall(SYS_getdents, fd, buff, PATH_MAX);
+        if (bytesRead == -1) {
+            perror("smash error: syscall failed");
+            if (close(fd) == -1) {
+                perror("smash error: close failed");
+            }
+            return;
+        }
+
+        if (bytesRead == 0) {
+            if (noUsb) {
+                cerr << "smash error: usbinfo: no USB devices found" << endl;
+            }
+            break;
+        }
+
+        int i = 0;
+
+       while (i < bytesRead) {
+            linux_dirent *dirent = (struct linux_dirent *)(buff + i);
+            string d_nameP = dirent->d_name;
+
+            if (d_nameP == "." || d_nameP == "..") {
+                i += dirent->d_reclen;
+                continue;
+            }
+            if (d_nameP.find('-') == string::npos || d_nameP.find(':') != string::npos) { //the device is USB
+                i += dirent->d_reclen;
+                continue;
+            }
+
+            noUsb = false;
+            string USBdir = string("/sys/bus/usb/devices/") + dirent->d_name;
+
+            string devnumFile = USBdir + "/devnum";
+            string devnum = dataInFile(devnumFile);
+            if (devnum == "") {
+                if (close(fd) == -1) {
+                    perror("smash error: close failed");
+                }
+                return;
+            }
+
+            string idVendorFile = USBdir + "/idVendor";
+            string idVendor = dataInFile(idVendorFile);
+            if (idVendor == "") {
+                if (close(fd) == -1) {
+                    perror("smash error: close failed");
+                }
+                return;
+            }
+
+            string productIdFile = USBdir + "/idProduct";
+            string productId = dataInFile(productIdFile);
+            if (productId == "") {
+                if (close(fd) == -1) {
+                    perror("smash error: close failed");
+                }
+                return;
+            }
+
+            string manufacturerFile = USBdir + "/manufacturer";
+            string manufacturer = dataInFile(manufacturerFile);
+            if (manufacturer == "") {
+                if (close(fd) == -1) {
+                    perror("smash error: close failed");
+                }
+                return;
+            }
+
+            string productNameFile = USBdir + "/product";
+            string productName = dataInFile(productNameFile);
+            if (productName == "") {
+                if (close(fd) == -1) {
+                    perror("smash error: close failed");
+                }
+                return;
+            }
+
+            string maxPowerConsumptionFile = USBdir + "/bMaxPower";
+            string maxPowerConsumption = dataInFile(maxPowerConsumptionFile);
+            if (maxPowerConsumption == "") {
+                if (close(fd) == -1) {
+                    perror("smash error: close failed");
+                }
+                return;
+            }
+           string output = "Device " + devnum + ": ID " + idVendor + ":" + productId + " " + manufacturer + " " + productName +" MaxPower: " + maxPowerConsumption + "mA";
+           usbDevices[stoi(devnum)] = output;
+            i += dirent->d_reclen;
+        }
+    }
+
+    for (const pair<const int,string>& p : usbDevices) {
+        cout << p.second << endl;
+    }
+
+    if (close(fd) == -1) {
+        perror("smash error: close failed");
+    }
+}
+
+
+

@@ -105,6 +105,7 @@ public:
 
 class USBInfoCommand : public Command {
     // TODO: Add your data members **BONUS: 10 Points**
+    static string dataInFile(const string& path);
 public:
     USBInfoCommand(const char *cmd_line);
 
