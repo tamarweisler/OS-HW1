@@ -1248,13 +1248,13 @@ void RedirectionCommand::execute() {
     close(OriginOutput);
 }
 
-struct linux_dirent {
+struct linux_dirent64 {
     unsigned long d_ino;
-    off_t d_off;
+    int64_t d_off;
     unsigned short d_reclen;
+    unsigned char d_type;
     char d_name[];
 };
-
 
 string USBInfoCommand::dataInFile(const string &path) {
     string temp;
@@ -1278,7 +1278,6 @@ string USBInfoCommand::dataInFile(const string &path) {
 
     if (close(fd) == -1) {
         perror("smash error: close failed");
-        return "";
     }
 
     return temp;
@@ -1297,7 +1296,7 @@ void USBInfoCommand::execute() {
     map<int, string> usbDevices;
 
     while (true) {
-        long bytesRead = syscall(SYS_getdents, fd, buff, PATH_MAX);
+        long bytesRead = syscall(SYS_getdents64, fd, buff, PATH_MAX);
         if (bytesRead == -1) {
             perror("smash error: syscall failed");
             if (close(fd) == -1) {
@@ -1314,16 +1313,15 @@ void USBInfoCommand::execute() {
         }
 
         int i = 0;
-
-       while (i < bytesRead) {
-            linux_dirent *dirent = (struct linux_dirent *)(buff + i);
+        while (i < bytesRead) {
+            linux_dirent64 *dirent = (struct linux_dirent64 *)(buff + i);
             string d_nameP = dirent->d_name;
 
             if (d_nameP == "." || d_nameP == "..") {
                 i += dirent->d_reclen;
                 continue;
             }
-            if (d_nameP.find('-') == string::npos || d_nameP.find(':') != string::npos) { //the device is USB
+            if ((d_nameP.find('-') == string::npos && d_nameP.find("usb") != 0)|| d_nameP.find(':') != string::npos) { //the device is not USB
                 i += dirent->d_reclen;
                 continue;
             }
@@ -1333,59 +1331,29 @@ void USBInfoCommand::execute() {
 
             string devnumFile = USBdir + "/devnum";
             string devnum = dataInFile(devnumFile);
-            if (devnum == "") {
-                if (close(fd) == -1) {
-                    perror("smash error: close failed");
-                }
-                return;
+
+            if (devnum == "N/A") {
+                i += dirent->d_reclen;
+                continue;
             }
 
             string idVendorFile = USBdir + "/idVendor";
             string idVendor = dataInFile(idVendorFile);
-            if (idVendor == "") {
-                if (close(fd) == -1) {
-                    perror("smash error: close failed");
-                }
-                return;
-            }
 
             string productIdFile = USBdir + "/idProduct";
             string productId = dataInFile(productIdFile);
-            if (productId == "") {
-                if (close(fd) == -1) {
-                    perror("smash error: close failed");
-                }
-                return;
-            }
 
             string manufacturerFile = USBdir + "/manufacturer";
             string manufacturer = dataInFile(manufacturerFile);
-            if (manufacturer == "") {
-                if (close(fd) == -1) {
-                    perror("smash error: close failed");
-                }
-                return;
-            }
 
             string productNameFile = USBdir + "/product";
             string productName = dataInFile(productNameFile);
-            if (productName == "") {
-                if (close(fd) == -1) {
-                    perror("smash error: close failed");
-                }
-                return;
-            }
 
             string maxPowerConsumptionFile = USBdir + "/bMaxPower";
             string maxPowerConsumption = dataInFile(maxPowerConsumptionFile);
-            if (maxPowerConsumption == "") {
-                if (close(fd) == -1) {
-                    perror("smash error: close failed");
-                }
-                return;
-            }
-           string output = "Device " + devnum + ": ID " + idVendor + ":" + productId + " " + manufacturer + " " + productName +" MaxPower: " + maxPowerConsumption + "mA";
-           usbDevices[stoi(devnum)] = output;
+
+            string output = "Device " + devnum + ": ID " + idVendor + ":" + productId + " " + manufacturer + " " + productName +" MaxPower: " + maxPowerConsumption;
+            usbDevices[stoi(devnum)] = output;
             i += dirent->d_reclen;
         }
     }
