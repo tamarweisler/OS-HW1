@@ -254,12 +254,12 @@ void ChangeDirCommand::execute() {
     }
 
     if (numArgs > 2) {
-        std::cerr << "smash error: cd: too many arguments" << std::endl ;
+        cerr << "smash error: cd: too many arguments" << endl ;
         return;
     }
 
     if (strcmp(args[1], "-") == 0 && *this->pLastPwd == nullptr) {
-        std::cerr << "smash error: cd: OLDPWD not set" << std::endl ;
+        cerr << "smash error: cd: OLDPWD not set" << endl ;
         return;
     }
 
@@ -318,13 +318,13 @@ void UnAliasCommand::execute() {
     int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
 
     if (numArgs == 1) {
-        std::cerr << "smash error: unalias: not enough arguments"<< std::endl;
+        cerr << "smash error: unalias: not enough arguments"<< endl;
         return;
     }
 
     for (int i = 1; i < numArgs; i++) {
         if (!SmallShell::getInstance().isAliasCommand(args[i])) {
-            std::cerr << "smash error: unalias: " << args[i] << " alias does not exist"<< std::endl;
+            cerr << "smash error: unalias: " << args[i] << " alias does not exist"<< endl;
             return;
         }
 
@@ -403,7 +403,7 @@ void UnSetEnvCommand::execute() {
     int numArgs = _parseCommandLine(this->getCmdLine().c_str(), args);
 
     if (numArgs == 1) {
-        std::cerr << "smash error: unsetenv: not enough arguments" << std::endl;
+        cerr << "smash error: unsetenv: not enough arguments" << endl;
         return;
     }
 
@@ -471,7 +471,6 @@ void SysInfoCommand::execute() {
 
     if (close(fd) == -1) {
         perror("smash error: close failed");
-        return;
     }
 
     cout << "System: " << OSName << endl;
@@ -527,11 +526,13 @@ void WhoAmICommand::execute() {
     uid_t uid = getuid();
     if (uid == -1) {
         perror("smash error: getuid failed");
+        return;
     }
 
     gid_t gid = getgid();
     if (gid == -1) {
         perror("smash error: getgid failed");
+        return;
     }
 
     int fd = open("/etc/passwd", O_RDONLY);
@@ -587,7 +588,6 @@ void WhoAmICommand::execute() {
 
     if (close(fd) == -1) {
         perror("smash error: close failed");
-        return;
     }
 
     cout << username << endl;
@@ -847,12 +847,14 @@ void PipeCommand::execute() {
             dup_result = dup2(pipe_fds[1], STDOUT_FILENO);
         if (dup_result < 0) {
             perror("smash error: dup2 failed");
-            close(pipe_fds[0]);
-            close(pipe_fds[1]);
+            if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+                perror("smash error: close failed");
+            }
             exit(1);
         }
-        close(pipe_fds[0]);
-        close(pipe_fds[1]);
+        if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+            perror("smash error: close failed");
+        }
         SmallShell& smash = SmallShell::getInstance();
         Command* first_cmd = smash.CreateCommand(first_cmd_str.c_str());
         if (first_cmd != nullptr) {
@@ -864,8 +866,9 @@ void PipeCommand::execute() {
     pid_t pid2 = fork();
     if (pid2 < 0) {
         perror("smash error: fork failed");
-        close(pipe_fds[0]);
-        close(pipe_fds[1]);
+        if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+            perror("smash error: close failed");
+        }
         int status = 0;
         while (true) {
             pid_t wait_result = waitpid(pid1, &status, 0);
@@ -883,18 +886,21 @@ void PipeCommand::execute() {
     if (pid2 == 0) {
         if (setpgrp() < 0) {
             perror("smash error: setpgrp failed");
-            close(pipe_fds[0]);
-            close(pipe_fds[1]);
+            if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+                perror("smash error: close failed");
+            }
             exit(1);
         }
         if (dup2(pipe_fds[0], STDIN_FILENO) < 0) {
             perror("smash error: dup2 failed");
-            close(pipe_fds[0]);
-            close(pipe_fds[1]);
+            if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+                perror("smash error: close failed");
+            }
             exit(1);
         }
-        close(pipe_fds[0]);
-        close(pipe_fds[1]);
+        if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+            perror("smash error: close failed");
+        }
         SmallShell& smash = SmallShell::getInstance();
         Command* second_cmd = smash.CreateCommand(second_cmd_str.c_str());
         if (second_cmd != nullptr) {
@@ -903,8 +909,9 @@ void PipeCommand::execute() {
         }
         exit(0);
     }
-    close(pipe_fds[0]);
-    close(pipe_fds[1]);
+    if (close(pipe_fds[0]) == -1 || close(pipe_fds[1]) == -1) {
+        perror("smash error: close failed");
+    }
     int status1 = 0;
     while (true) {
         pid_t wait_result = waitpid(pid1, &status1, 0);
@@ -1241,7 +1248,6 @@ void RedirectionCommand::execute() {
     SmallShell::getInstance().executeCommand(this->input.c_str());
     if (close(fd) == -1) {
         perror("smash error: close failed");
-        return;
     }
 
     dup2(OriginOutput, 1);
